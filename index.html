@@ -19,7 +19,18 @@
   h1,h2{font-family:'Baloo 2',sans-serif; font-weight:700; margin:0; color:var(--ink);}
   .container{max-width:980px; margin:0 auto; padding:0 16px;}
 
-  header{padding:40px 0 8px;}
+  /* Емблема ліворуч від заголовка й опису; на телефоні опис переходить під емблему */
+  header.container{padding-top:40px; padding-bottom:8px;}
+  header{display:grid; grid-template-columns:auto 1fr; grid-template-areas:"logo title" "logo text"; align-content:center; column-gap:24px;}
+  header .emblem{grid-area:logo; align-self:center; width:128px; height:128px;}
+  header h1{grid-area:title; align-self:end;}
+  header p{grid-area:text;}
+  @media (max-width:520px){
+    header.container{padding-top:24px;}
+    header{grid-template-areas:"logo title" "text text"; column-gap:14px;}
+    header .emblem{width:72px; height:72px;}
+    header h1{align-self:center;}
+  }
   header h1{font-size:clamp(30px, 6vw, 44px); line-height:1.15;}
   header p{margin:8px 0 0; color:var(--ink-soft); font-size:17px; max-width:620px;}
 
@@ -43,13 +54,15 @@
         border-radius:999px; padding:5px 20px;}
   .card:hover .play{background:var(--teal-dark);}
 
-  footer{margin:48px 0 32px; color:var(--ink-soft); font-size:14px;}
+  footer.container{margin-top:48px; margin-bottom:32px;}
+  footer{color:var(--ink-soft); font-size:14px;}
   footer a{color:var(--teal-dark);}
 </style>
 </head>
 <body>
 
 <header class="container">
+  <img class="emblem" src="img/emblem.png" alt="Емблема гімназії № 131 Святошинського району міста Києва">
   <h1>Інформатика в 131-й</h1>
   <p>Ігри-тренажери для уроків інформатики. Працюють у браузері Chrome без реєстрації. Гра, яку раз відкрили з інтернетом, далі працює й без нього.</p>
 </header>
