@@ -66,7 +66,7 @@
 <header class="container">
   <img class="emblem" src="img/emblem.png" alt="Емблема гімназії № 131 Святошинського району міста Києва">
   <h1>Інформатика в 131-й</h1>
-  <p>Ігри-тренажери для уроків інформатики. Працюють у браузері Chrome без реєстрації. Гра, яку раз відкрили з інтернетом, далі працює й без нього.</p>
+  <p>Ігри-тренажери для уроків інформатики. Працюють у браузері Chrome без реєстрації. Досить раз відкрити цю сторінку з інтернетом — і всі ігри далі працюють без нього.</p>
 </header>
 
 <main class="container">
@@ -122,8 +122,12 @@
 </footer>
 
 <script>
-// Офлайн-режим: після першого відкриття з інтернетом каталог відкривається й без мережі (див. sw.js)
-if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+// Офлайн-режим: після першого відкриття з інтернетом каталог відкривається й без мережі (див. sw.js).
+// Заразом реєструємо власні sw.js усіх ігор з карток: кожна гра зберігає себе так, ніби її вже відкрили.
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  for(const a of document.querySelectorAll('a.card')) navigator.serviceWorker.register(a.pathname + 'sw.js', { scope:a.pathname }).catch(()=>{});
+}
 </script>
 </body>
 </html>
