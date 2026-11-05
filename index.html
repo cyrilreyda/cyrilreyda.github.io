@@ -6,7 +6,9 @@
 <title>Інформатика в 131-й</title>
 <meta name="description" content="Ігри-тренажери для уроків інформатики: миша, клавіатура, гарячі клавіші.">
 <link href="fonts/fonts.css" rel="stylesheet">
-<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="manifest" href="manifest.webmanifest">   <!-- каталог можна встановити як програму -->
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="theme-color" content="#16A3A0">
 <style>
   :root{
@@ -119,5 +121,9 @@
   Оформлення ігор — з <a href="https://cikavo.me/labs/typing-race/">«Клавіатурних перегонів»</a> Лабораторії <a href="https://github.com/tkc-teacher/cikavo">tkc-teacher</a>, з дозволу автора.
 </footer>
 
+<script>
+// Офлайн-режим: після першого відкриття з інтернетом каталог відкривається й без мережі (див. sw.js)
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
 </body>
 </html>

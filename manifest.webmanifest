@@ -1,0 +1,15 @@
+{
+  "name": "Інформатика в 131-й",
+  "short_name": "Інформатика",
+  "description": "Ігри-тренажери для уроків інформатики. Працює й без інтернету.",
+  "lang": "uk",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F6F5FB",
+  "theme_color": "#16A3A0",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
