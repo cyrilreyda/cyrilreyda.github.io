@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Інформатика в 131-й</title>
-<meta name="description" content="Ігри-тренажери для уроків інформатики: миша, клавіатура, гарячі клавіші.">
+<meta name="description" content="Ігри-тренажери для уроків інформатики: миша, клавіатура, гарячі клавіші, терміни й англійські слова.">
 <link href="fonts/fonts.css" rel="stylesheet">
 <link rel="manifest" href="manifest.webmanifest">   <!-- каталог можна встановити як програму -->
 <link rel="icon" type="image/png" href="icons/icon-192.png">
@@ -40,6 +40,9 @@
   .section-title{display:flex; align-items:center; gap:10px; margin:32px 0 14px; font-size:22px;}
   .section-title .dot{width:12px; height:12px; border-radius:50%; background:var(--teal);}
   .section-title.keys .dot{background:var(--purple);}
+  .section-title.words .dot{background:var(--coral);}
+  /* Одна гра в розділі — картка завширшки як у розділах з двома */
+  @media (min-width:620px){ .grid > .card:only-child{max-width:calc(50% - 9px);} }
 
   .grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px;}
   .card{display:flex; flex-direction:column; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-l);
@@ -52,6 +55,7 @@
   .tags{display:flex; gap:6px; flex-wrap:wrap;}
   .tag{font-family:'Baloo 2',sans-serif; font-weight:600; font-size:13px; padding:1px 10px; border-radius:999px; background:#E3F7F6; color:var(--teal-dark);}
   .tag.keys{background:#ECE9FD; color:#5340c9;}
+  .tag.words{background:#FFEDE8; color:#C2410C;}
   .play{align-self:flex-start; margin-top:4px; font-family:'Baloo 2',sans-serif; font-weight:700; font-size:16px; color:#fff; background:var(--teal);
         border-radius:999px; padding:5px 20px;}
   .card:hover .play{background:var(--teal-dark);}
@@ -110,6 +114,19 @@
         <div class="tags"><span class="tag">подвійне клацання</span></div>
         <h2>Двічі клац!</h2>
         <p>У ставку виринають жабки, рибки й краби. Лови їх подвійним клацанням, поки не пірнули назад.</p>
+        <span class="play">Грати</span>
+      </div>
+    </a>
+  </div>
+
+  <h2 class="section-title words"><span class="dot"></span>Слова</h2>
+  <div class="grid">
+    <a class="card" href="/word-bricks-kids/">
+      <img src="img/word-bricks-kids.jpg" alt="Цеглинки слів: стіна цеглинок, падаюче слово «миша» й знайдений предмет" loading="lazy">
+      <div class="card-body">
+        <div class="tags"><span class="tag words">інформатика</span><span class="tag words">English</span></div>
+        <h2>Цеглинки слів</h2>
+        <p>Відбивай м'ячик і збивай цеглинки, щоб звільнити сховане слово. Спіймай його — і предмет потрапить у колекцію. Терміни інформатики й англійські слова для 2–5 класів.</p>
         <span class="play">Грати</span>
       </div>
     </a>

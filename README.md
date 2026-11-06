@@ -8,6 +8,7 @@
 | Двічі клац! | подвійне клацання, влучність | [double-click-kids](https://github.com/cyrilreyda/double-click-kids) |
 | Клавіатурні перегони Junior | друк | [typing-race-kids](https://github.com/cyrilreyda/typing-race-kids) |
 | Гарячі клавіші | клавіатурні скорочення | [hot-keys](https://github.com/cyrilreyda/hot-keys) |
+| Цеглинки слів | терміни інформатики й англійські слова, керування мишею | [word-bricks-kids](https://github.com/cyrilreyda/word-bricks-kids) |
 
 Сторінка — один файл `index.html`. Ігри лежать у власних репозиторіях і відкриваються за адресою `/<репозиторій>/`, тож посилання в картках відносні до кореня сайту. Картинки в `img/` — знімки екрана ігор, 16:10.
 
