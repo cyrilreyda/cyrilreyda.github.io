@@ -7,6 +7,7 @@
 | Мишачі перегони | ліва й права кнопки миші, колесо | [mouse-race-kids](https://github.com/cyrilreyda/mouse-race-kids) |
 | Двічі клац! | подвійне клацання, влучність | [double-click-kids](https://github.com/cyrilreyda/double-click-kids) |
 | Клавіатурні перегони Junior | друк | [typing-race-kids](https://github.com/cyrilreyda/typing-race-kids) |
+| Повітряні перегони | друк без зупинок | [balloon-race-kids](https://github.com/cyrilreyda/balloon-race-kids) |
 | Гарячі клавіші | клавіатурні скорочення | [hot-keys](https://github.com/cyrilreyda/hot-keys) |
 | Цеглинки слів | терміни інформатики й англійські слова, керування мишею | [word-bricks-kids](https://github.com/cyrilreyda/word-bricks-kids) |
 

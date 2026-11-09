@@ -1,11 +1,11 @@
 // Офлайн-режим каталогу. Онлайн сторінка завжди береться з мережі (і оновлює збережену копію),
 // без інтернету — зі збереженої копії. Ігри мають власні sw.js у своїх папках; цей лише для файлів каталогу.
 // Після зміни списку FILES збільшити номер у CACHE, щоб браузери забрали нову копію.
-const CACHE = 'catalog-v2';
+const CACHE = 'catalog-v3';
 const FILES = ['./', './index.html', './manifest.webmanifest',
                './fonts/fonts.css', './fonts/baloo2-latin.woff2', './fonts/nunitosans-cyrillic.woff2', './fonts/nunitosans-latin.woff2',
                './icons/icon-192.png', './icons/icon-512.png', './img/emblem.png',
-               './img/typing-race-kids.jpg', './img/hot-keys.jpg', './img/mouse-race-kids.jpg', './img/double-click-kids.jpg', './img/word-bricks-kids.jpg'];
+               './img/typing-race-kids.jpg', './img/balloon-race-kids.jpg', './img/hot-keys.jpg', './img/mouse-race-kids.jpg', './img/double-click-kids.jpg', './img/word-bricks-kids.jpg'];
 const PATHS = FILES.map(f=>new URL(f, self.registration.scope).pathname);
 const TIMEOUT = 5000;   // повільна мережа в класі — після 5 с беремо збережену копію
 
