@@ -6,6 +6,9 @@
 // Це захист від цікавості, а не від злому: код можна обчислити з відкритого коду сайту, а гра, розпакована з архіву,
 // замка не має (/lock.js поруч немає — гра відкривається як завжди).
 (()=>{
+  // Вимикач замка. false — каталог і ігри відкриті всім без коду, сторінка вчителя лише каже, що замок вимкнено.
+  // Щоб увімкнути знову, досить поставити true: ігри підключають /lock.js і далі
+  const ENABLED = false;
   const SALT = 'pc6ggc33be';
   const PIN_HASH = 3322279215;   // hash(SALT + 'pin:' + PIN); як змінити PIN — README каталогу
   const UNLOCK = 'lesson-unlock';   // 'forever' або день 'YYYY-MM-DD', до кінця якого ігри відкриті
@@ -68,6 +71,12 @@
     onReady(()=>{
       const root = document.getElementById('teacher');
       root.classList.add('ll');
+      if(!ENABLED){
+        root.innerHTML = `<div class="ll-card"><div class="ll-big">🔓</div><h2>Код уроку не потрібен</h2>
+          <p>Замок вимкнено: каталог і всі ігри відкриті без коду.</p>
+          <div class="row"><a href="/" style="color:var(--teal-d); font-weight:700;">← До ігор</a></div></div>`;
+        return;
+      }
       const render = ()=>{
         if(get(TEACHER) !== '1'){
           root.innerHTML = `<div class="ll-card"><div class="ll-big">🔑</div><h2>Для вчителя</h2>
@@ -102,7 +111,7 @@
   }
 
   /* ---------- Каталог і ігри: заставка, поки ігри закриті ---------- */
-  if(state() !== 'locked') return;
+  if(!ENABLED || state() !== 'locked') return;
   const html = document.documentElement;
   html.classList.add('lesson-locked');
   let lock = null;
