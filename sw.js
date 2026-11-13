@@ -2,7 +2,7 @@
 // без інтернету — зі збереженої копії. Ігри мають власні sw.js у своїх папках; цей лише для файлів каталогу.
 // Після зміни списку FILES збільшити номер у CACHE, щоб браузери забрали нову копію.
 const CACHE = 'catalog-v4';
-const FILES = ['./', './index.html', './manifest.webmanifest', './lock.js', './vchytel/', './vchytel/index.html',
+const FILES = ['./', './index.html', './manifest.webmanifest', './lock.js', './teacher/', './teacher/index.html',
                './fonts/fonts.css', './fonts/baloo2-latin.woff2', './fonts/nunitosans-cyrillic.woff2', './fonts/nunitosans-latin.woff2',
                './icons/icon-192.png', './icons/icon-512.png', './img/emblem.png',
                './img/typing-race-kids.jpg', './img/balloon-race-kids.jpg', './img/hot-keys.jpg', './img/mouse-race-kids.jpg', './img/double-click-kids.jpg', './img/word-bricks-kids.jpg'];

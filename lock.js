@@ -1,6 +1,6 @@
 // Замок «лише на уроці» для каталогу й усіх ігор сайту. Підключається в <head> каталогу й кожної гри: <script src="/lock.js">.
 // Поки ігри на цьому комп'ютері закриті, сторінку закриває заставка з полем «Код уроку». Код — 4 цифри, свій на кожен день.
-// Вчитель бачить його на сторінці /vchytel/ і показує класу на дошці. Введений код відкриває всі ігри сайту на цьому
+// Вчитель бачить його на сторінці /teacher/ і показує класу на дошці. Введений код відкриває всі ігри сайту на цьому
 // комп'ютері до кінця дня: localStorage у каталогу й ігор спільний. Вчитель може відкрити ігри й без коду, своїм PIN:
 // на сьогодні або на цьому комп'ютері назавжди (комп'ютер у класі, який не стирає налаштування).
 // Це захист від цікавості, а не від злому: код можна обчислити з відкритого коду сайту, а гра, розпакована з архіву,
@@ -63,7 +63,7 @@
     inp.focus();
   };
 
-  /* ---------- Сторінка вчителя /vchytel/ ---------- */
+  /* ---------- Сторінка вчителя /teacher/ ---------- */
   if(teacherPage){
     onReady(()=>{
       const root = document.getElementById('teacher');
@@ -140,7 +140,7 @@
     t.querySelector('button').addEventListener('click', ()=>{
       const choose = ()=>{
         t.innerHTML = `<div class="row"><button type="button" data-a="today">Відкрити на сьогодні</button><button type="button" class="light" data-a="forever">Назавжди на цьому комп'ютері</button></div>
-          <div class="row"><a href="/vchytel/" style="color:var(--teal-d); font-weight:700; font-size:14.5px;">Код уроку для класу →</a></div>`;
+          <div class="row"><a href="/teacher/" style="color:var(--teal-d); font-weight:700; font-size:14.5px;">Код уроку для класу →</a></div>`;
         t.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click', ()=>{ set(UNLOCK, b.dataset.a === 'forever' ? 'forever' : day()); open(); }));
       };
       pinForm(t, choose, false);
