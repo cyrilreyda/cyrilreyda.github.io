@@ -51,6 +51,6 @@ python -c "import functools as f; print(f.reduce(lambda h,c:((h^ord(c))*16777619
 
 </details>
 
-Нова гра: картка в `index.html` у потрібному розділі, знімок у `img/` і в список `FILES` у `sw.js` (з новим номером `CACHE`), рядок у таблиці вище, а в самій грі — посилання `← Інформатика в 131-й` на https://cyrilreyda.github.io/ у шапці й `<script src="/lock.js"></script>` у `<head>`.
+Нова гра: картка в `index.html` у потрібному розділі, знімок у `img/` і в список `FILES` у `sw.js` (з новим номером `CACHE`), рядок у таблиці вище, а в самій грі — посилання `← Всі ігри` на https://cyrilreyda.github.io/ у шапці й `<script src="/lock.js"></script>` у `<head>`.
 
 Локальна перевірка: з папки, де поруч лежать усі репозиторії, запустити `python -m http.server 8770` і відкрити http://localhost:8770/cyrilreyda.github.io/ (посилання на ігри ведуть на http://localhost:8770/<гра>/). Так `/lock.js` не знаходиться, і замка немає. Щоб перевірити замок, сайт треба віддавати так, як GitHub Pages: каталог у корені, ігри в `/<гра>/`.
