@@ -7,7 +7,7 @@
 // замка не має (/lock.js поруч немає — гра відкривається як завжди).
 (()=>{
   const SALT = 'pc6ggc33be';
-  const PIN_HASH = 1051713730;   // hash(SALT + 'pin:' + PIN); як змінити PIN — README каталогу
+  const PIN_HASH = 3322279215;   // hash(SALT + 'pin:' + PIN); як змінити PIN — README каталогу
   const UNLOCK = 'lesson-unlock';   // 'forever' або день 'YYYY-MM-DD', до кінця якого ігри відкриті
   const TEACHER = 'lesson-teacher'; // '1' — на цьому комп'ютері вже вводили PIN вчителя
   const teacherPage = !!(document.currentScript && document.currentScript.hasAttribute('data-teacher'));
