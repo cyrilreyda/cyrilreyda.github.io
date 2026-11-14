@@ -9,6 +9,7 @@
 | Клавіатурні перегони | друк | [typing-race-kids](https://github.com/cyrilreyda/typing-race-kids) |
 | Повітряні перегони | друк без зупинок | [balloon-race-kids](https://github.com/cyrilreyda/balloon-race-kids) |
 | Гарячі клавіші | клавіатурні скорочення | [hot-keys](https://github.com/cyrilreyda/hot-keys) |
+| Мешканці клавіатури | службові клавіші, перетягування мишею | [keyboard-residents-kids](https://github.com/cyrilreyda/keyboard-residents-kids) |
 | Цеглинки слів | терміни інформатики й англійські слова, керування мишею | [word-bricks-kids](https://github.com/cyrilreyda/word-bricks-kids) |
 
 Сторінка — один файл `index.html`. Ігри лежать у власних репозиторіях і відкриваються за адресою `/<репозиторій>/`, тож посилання в картках відносні до кореня сайту. Картинки в `img/` — знімки екрана ігор, 16:10.
