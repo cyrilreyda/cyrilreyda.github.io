@@ -92,7 +92,8 @@
     roomRef.set({ meta:{ a:me.id, b:toId, la:me.label, lb:room.toLabel, game:GAME, ...set } });
     const inv = base.child(`inv/${toId}/${me.id}`);
     inv.onDisconnect().remove();
-    inv.set({ room:id, label:me.label, desc:set.desc || '', at:firebase.database.ServerValue.TIMESTAMP });
+    inv.set({ room:id, label:me.label, desc:set.desc || '', at:firebase.database.ServerValue.TIMESTAMP })
+      .catch(()=>{ if(room?.id === id){ dropRoom(); render('Виклик не надіслався. Спробуй ще раз.'); } });   // напр., база відкинула завеликий запис
     room.inv = inv;
     roomRef.on('value', s=>{
       const r = s.val();
@@ -202,7 +203,7 @@
     if(msg !== undefined) note = msg;
     if(!box || room?.started) return;
     if(room && room.host){
-      card(`<div class="duel-big">⏳</div><h2>Чекаю на ${esc(room.toLabel)}…</h2><p>Щойно суперник прийме виклик, почнеться відлік.</p>
+      card(`<div class="duel-big">⏳</div><h2>Чекаю на відповідь</h2><p>${esc(room.toLabel)} бачить твій виклик. Щойно прийме — почнеться відлік.</p>
         <div class="row"><button class="light" data-a="cancel">Скасувати</button></div>`);
       on('[data-a="cancel"]', ()=>{ dropRoom(); render(''); });
       return;
