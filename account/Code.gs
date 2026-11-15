@@ -103,8 +103,10 @@ function labels(students){
 }
 function userOf(s, label){
   const nick = String(s.r[S.NICK] || '').trim();
-  return { id:String(s.r[S.ID]), name:label, nick, label:nick || label, full:nick ? `${nick} (${label})` : label };
+  return { id:String(s.r[S.ID]), name:label, nick, label:nick || label, full:nick ? `${nick} (${label})` : label, cls:classKey(s.r[S.CLASS]) };
 }
+// Ключ класу для дуелей: однаковий в усіх учнів класу, але з нього не дізнатися ні назви класу, ні PIN
+const classKey = name=>hmac('class:' + String(name).trim()).slice(0, 22);
 
 /* ---------- Дії ---------- */
 
@@ -232,7 +234,7 @@ function sync(req){
       if(saved[game] || conflicts[game]) return;
       if((+(req.have || {})[game] || 0) < at[game].v) fresh[game] = { v:at[game].v, data:JSON.parse(at[game].data) };
     });
-    return { ok:true, saved, conflicts, fresh, tooBig };
+    return { ok:true, saved, conflicts, fresh, tooBig, cls:classKey(s.r[S.CLASS]) };   // cls — тим, хто увійшов до появи дуелей
   }finally{ lock.releaseLock(); }
 }
 

@@ -9,7 +9,8 @@
 //
 // Для гри:
 //   Account.ready(fn)        — fn(), коли є учень чи гість; якщо ще ні — спершу вікно входу
-//   Account.user             — { id, label, full, guest }: label — нік або «Оля К.», full — «Нік (Оля К.)»
+//   Account.user             — { id, label, full, guest, cls }: label — нік або «Оля К.», full — «Нік (Оля К.)»,
+//                              cls — ключ класу (однаковий у всього класу, назви класу з нього не дізнатися)
 //   Account.get(key)         — збережені дані гри (об'єкт) або null; key — як STORE_KEY гри
 //   Account.save(key, data)  — зберегти дані гри (на пристрої одразу, на сервері — щойно буде зв'язок)
 //   Account.shared(name)     — копія спільного для всіх ігор об'єкта (напр. 'pace' — швидкість друку) або {}
@@ -166,6 +167,7 @@
       changed.push(key);
     });
     (res.tooBig || []).forEach(key=>console.warn('account: too big to sync', key));
+    if(res.cls && cur.user) cur.user.cls = res.cls;   // ключ класу для дуелей — і тим, хто увійшов до їх появи
     setJ(k, cur);
     if(isMine()){ rec = cur; changed.forEach(key=>emit('update', key, copy(cur.docs[key].data))); }
     return !Object.keys(res.conflicts || {}).length || await syncOne(k);

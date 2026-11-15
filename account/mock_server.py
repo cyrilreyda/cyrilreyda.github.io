@@ -47,7 +47,7 @@ def labels(students):
 
 def user(s, label):
     return {"id": s[ID], "name": label, "nick": s[NICK], "label": s[NICK] or label,
-            "full": f"{s[NICK]} ({label})" if s[NICK] else label}
+            "full": f"{s[NICK]} ({label})" if s[NICK] else label, "cls": h("class:" + s[0])[:22]}
 
 
 def find(pin):
@@ -116,7 +116,7 @@ def handle(req):
         for (i, game), cur in PROGRESS.items():
             if i == sid and game not in saved and game not in conflicts and (req.get("have") or {}).get(game, 0) < cur["v"]:
                 fresh[game] = cur
-        return {"ok": True, "saved": saved, "conflicts": conflicts, "fresh": fresh, "tooBig": []}
+        return {"ok": True, "saved": saved, "conflicts": conflicts, "fresh": fresh, "tooBig": [], "cls": h("class:" + s[0])[:22]}
     return {"error": "bad-request"}
 
 
