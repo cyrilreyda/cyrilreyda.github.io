@@ -78,15 +78,69 @@ function findClass(pin){
   }
   const name = String(cls[0]).trim();
   const sh = studentsSheet();
-  const all = rows(sh);
+  let all = rows(sh);
+  if(needIds(all, name)){
+    const lock = LockService.getScriptLock(), own = !lock.hasLock();
+    if(own) lock.waitLock(20000);
+    try{ all = rows(sh); fixIds(sh, all, name); }finally{ if(own) lock.releaseLock(); }
+  }
   const students = [];
   all.forEach((r, i)=>{ if(String(r[S.CLASS]).trim() === name && String(r[S.FIRST]).trim()) students.push({ row:i + 2, r }); });
-  // Новим учням — id (раз і назавжди, щоб прогрес не залежав від написання імені)
-  students.filter(s=>!s.r[S.ID]).forEach(s=>{
-    s.r[S.ID] = Utilities.getUuid().slice(0, 8);
-    sh.getRange(s.row, S.ID + 1).setValue(s.r[S.ID]);
-  });
   return { name, students };
+}
+
+// Чи є учні класу без id або два рядки з одним id (рядок скопіювали разом зі стовпцем id)
+function needIds(all, name){
+  const seen = new Set();
+  return all.some(r=>{
+    const id = String(r[S.ID]).trim();
+    if(!id) return String(r[S.CLASS]).trim() === name && !!String(r[S.FIRST]).trim();
+    if(seen.has(id)) return true;
+    seen.add(id);
+    return false;
+  });
+}
+
+// Новим учням класу — id (раз і назавжди, щоб прогрес не залежав від написання імені).
+// Повторний id: перший рядок зберігає id і прогрес, копія стає новим учнем — новий id, порожні нік і малюнки
+function fixIds(sh, all, name){
+  const taken = new Set(all.map(r=>String(r[S.ID]).trim()).filter(Boolean)), seen = new Set();
+  const newId = ()=>{
+    let id;
+    do id = Utilities.getUuid().slice(0, 8); while(taken.has(id) || /^\d*e?\d*$/i.test(id));   // лише цифри таблиця перетворить на число
+    taken.add(id);
+    return id;
+  };
+  all.forEach((r, i)=>{
+    const id = String(r[S.ID]).trim();
+    if(id && !seen.has(id)){ seen.add(id); return; }
+    if(id){
+      r[S.NICK] = r[S.PICS] = r[S.FAILS] = r[S.GEN] = '';
+      r[S.ID] = newId();
+      sh.getRange(i + 2, S.NICK + 1, 1, 5).setValues([['', '', '', r[S.ID], '']]);
+    }else if(String(r[S.CLASS]).trim() === name && String(r[S.FIRST]).trim()){
+      r[S.ID] = newId();
+      sh.getRange(i + 2, S.ID + 1).setValue(r[S.ID]);
+    }else return;
+    seen.add(r[S.ID]);
+  });
+}
+
+// Номер рядка учня просто перед записом. Якщо, поки скрипт працював, у таблиці вставили, видалили чи пересортували рядки,
+// шукаємо учня за id заново: інакше запис потрапить сусідові
+function studentRow(sh, s){
+  const id = String(s.r[S.ID]);
+  if(s.row <= sh.getLastRow() && String(sh.getRange(s.row, S.ID + 1).getValue()) === id) return s.row;
+  const i = rows(sh).findIndex(r=>String(r[S.ID]) === id);
+  if(i < 0) throw new Error('student row gone: ' + id);
+  return s.row = i + 2;
+}
+// Те саме для рядка гри учня на аркуші «Прогрес»; 0 — рядка вже немає
+function progressRow(sh, id, game, row){
+  const same = r=>String(r[P.ID]) === id && String(r[P.GAME]) === game;
+  if(row <= sh.getLastRow() && same(sh.getRange(row, 1, 1, 2).getValues()[0])) return row;
+  const i = rows(sh).findIndex(same);
+  return i < 0 ? 0 : i + 2;
 }
 
 // «Оля К.», а якщо в класі дві «Олі К.» — «Оля Ко.»; повне прізвище з сервера не виходить
@@ -147,7 +201,7 @@ function setup(req){
     if(nick && c.students.some(o=>o !== s && String(o.r[S.NICK]).trim().toLowerCase() === nick.toLowerCase())) return { error:'nick-taken' };
     const gen = (+s.r[S.GEN] || 0) + 1;   // нове покоління — старі входи на інших пристроях більше не діють
     const sh = studentsSheet();
-    sh.getRange(s.row, S.NICK + 1, 1, 5).setValues([[nick, picsHash(s.r[S.ID], req.pics), 0, s.r[S.ID], gen]]);
+    sh.getRange(studentRow(sh, s), S.NICK + 1, 1, 5).setValues([[nick, picsHash(s.r[S.ID], req.pics), 0, s.r[S.ID], gen]]);
     s.r[S.NICK] = nick; s.r[S.GEN] = gen;
     return session(s, labels(c.students).get(s));
   }finally{ lock.releaseLock(); }
@@ -166,10 +220,11 @@ function login(req){
     const fails = +s.r[S.FAILS] || 0;
     if(fails >= MAX_TRIES) return { error:'locked' };
     if(picsHash(s.r[S.ID], req.pics) !== String(s.r[S.PICS]).trim()){
-      studentsSheet().getRange(s.row, S.FAILS + 1).setValue(fails + 1);
+      const sh = studentsSheet();
+      sh.getRange(studentRow(sh, s), S.FAILS + 1).setValue(fails + 1);
       return fails + 1 >= MAX_TRIES ? { error:'locked' } : { error:'pics', left:MAX_TRIES - fails - 1 };
     }
-    if(fails) studentsSheet().getRange(s.row, S.FAILS + 1).setValue(0);
+    if(fails){ const sh = studentsSheet(); sh.getRange(studentRow(sh, s), S.FAILS + 1).setValue(0); }
     return session(s, labels(c.students).get(s));
   }finally{ lock.releaseLock(); }
 }
@@ -224,7 +279,8 @@ function sync(req){
       if(cur && cur.v !== +doc.v){ conflicts[game] = { v:cur.v, data:JSON.parse(cur.data) }; return; }
       const v = (cur ? cur.v : 0) + 1;
       const row = [id, game, v, text, new Date()];
-      if(cur) sh.getRange(cur.row, 1, 1, 5).setValues([row]);
+      const to = cur && progressRow(sh, id, game, cur.row);
+      if(to) sh.getRange(to, 1, 1, 5).setValues([row]);
       else sh.appendRow(row);
       at[game] = { v, data:text };
       saved[game] = v;
