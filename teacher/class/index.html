@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Огляд класу · Інформатика в 131-й</title>
+<meta name="robots" content="noindex">
+<link href="../../fonts/fonts.css" rel="stylesheet">
+<link rel="icon" type="image/png" href="../../icons/icon-192.png">
+<!-- Огляд класу для вчителя: хто в які ігри грав, скільки раундів, бали, наліпки, швидкість друку й коли грав востаннє.
+     Вхід — PIN вчителя (властивість скрипту TEACHER_PIN у Google Таблиці), не PIN класу. PIN ніде не зберігається:
+     після оновлення сторінки його треба ввести знову. Дані — з аркуша «Прогрес» через /account.js -->
+<script src="/account.js"></script>
+<style>
+  :root{--ink:#1B1B3A; --soft:#514F72; --teal:#16A3A0; --teal-d:#0E7C7A; --line:#E4E1F5; --bg:#F6F5FB; --coral:#C2410C;}
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:'Nunito Sans',system-ui,sans-serif; line-height:1.45;}
+  main{max-width:1200px; margin:0 auto; padding:20px 16px 40px;}
+  h1{font-family:'Baloo 2',system-ui,sans-serif; font-weight:800; font-size:clamp(26px, 3.5vw, 38px); margin:0 0 4px;}
+  .sub{color:var(--soft); margin:0 0 16px;}
+  .card{background:#fff; border:1.5px solid var(--line); border-radius:22px; padding:16px 18px; margin-bottom:16px;}
+  .bar{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+  input, select{font:inherit; font-size:17px; padding:7px 12px; border:2px solid var(--line); border-radius:14px; color:var(--ink); background:#fff;}
+  input.pin{width:11em; letter-spacing:.15em; text-align:center; font-weight:700;}
+  button{font-family:'Baloo 2',system-ui,sans-serif; font-weight:700; font-size:17px; border:none; border-radius:999px; padding:8px 20px; cursor:pointer; background:var(--teal); color:#fff;}
+  button:hover{background:var(--teal-d);}
+  .err{color:var(--coral); font-weight:700; min-height:1.4em; margin-top:6px;}
+  .scroll{overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; font-size:15px; min-width:760px;}
+  th, td{padding:7px 8px; border-bottom:1.5px solid var(--line); text-align:center; white-space:nowrap;}
+  th{color:var(--soft); font-size:13px; font-weight:700; vertical-align:bottom;}
+  th .gi{display:block; font-size:24px; font-family:'Segoe UI Emoji','Apple Color Emoji',sans-serif;}
+  td.n, th.n{text-align:left;}
+  td.n small{color:var(--soft);}
+  td.z{color:#C9C6DC;}
+  tr.old td{color:var(--soft);}
+  tr.never td{color:#B3B0C8;}
+  .stat{display:flex; flex-wrap:wrap; gap:18px; margin:4px 0 12px; color:var(--soft);}
+  .stat b{font-family:'Baloo 2',system-ui,sans-serif; font-size:24px; color:var(--ink); margin-right:4px;}
+  .note{color:var(--soft); font-size:14px; margin-top:10px;}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<main>
+  <h1>📊 Огляд класу</h1>
+  <p class="sub">Хто в які ігри грав, скільки раундів і як друкує. Лише для вчителя.</p>
+
+  <section class="card" id="login">
+    <div class="bar"><b>PIN вчителя</b><input class="pin" id="tpin" type="password" inputmode="numeric" autocomplete="off"><button id="tpinBtn">Увійти</button></div>
+    <div class="err" id="loginErr"></div>
+  </section>
+
+  <section class="card" id="pick" hidden>
+    <div class="bar"><b>Клас</b><select id="cls"></select><button id="showBtn">Показати</button></div>
+    <div class="err" id="pickErr"></div>
+  </section>
+
+  <section class="card" id="view" hidden>
+    <div class="stat" id="stat"></div>
+    <div class="scroll"><table id="table"></table></div>
+    <p class="note">У клітинці гри — скільки раундів зіграно; наведіть мишу, щоб побачити бали, наліпки й дату. Зн/хв — звична швидкість друку з перегонів.
+      Сірим — ті, хто не грав понад тиждень, блідим — ще жодного разу не входили.</p>
+  </section>
+</main>
+<script>
+(()=>{
+  const $ = id=>document.getElementById(id);
+  const esc = s=>String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const ERR = { pin:'PIN не підходить.', busy:'Забагато спроб. Зачекайте 10 хвилин.', 'no-teacher-pin':'PIN вчителя ще не задано: властивість TEACHER_PIN у скрипті таблиці (README каталогу).' };
+  let tpin = '';
+  if(!window.Account){ $('loginErr').textContent = 'Сторінка працює лише на сайті ігор.'; return; }
+  const ask = async req=>{ try{ return await Account.api({ ...req, tpin }); }catch(e){ return { error:'net' }; } };
+  const errText = r=>ERR[r.error] || 'Немає зв\'язку з сервером.';
+
+  $('tpin').addEventListener('keydown', e=>{ if(e.key === 'Enter') $('tpinBtn').click(); });
+  $('tpinBtn').addEventListener('click', async ()=>{
+    tpin = $('tpin').value;
+    $('loginErr').textContent = 'Перевіряю…';
+    const r = await ask({ a:'teacherClasses' });
+    if(!r.ok){ $('loginErr').textContent = errText(r); return; }
+    $('loginErr').textContent = '';
+    $('cls').innerHTML = r.classes.map(c=>`<option value="${esc(c.name)}">${esc(c.name)} · ${c.count} учн.</option>`).join('');
+    $('login').hidden = true;
+    $('pick').hidden = false;
+  });
+  $('showBtn').addEventListener('click', async ()=>{
+    $('pickErr').textContent = 'Збираю дані…';
+    const r = await ask({ a:'teacherOverview', cls:$('cls').value });
+    if(!r.ok){ $('pickErr').textContent = errText(r); return; }
+    $('pickErr').textContent = '';
+    render(r.students);
+  });
+
+  const day = t=>t ? new Date(t).toLocaleDateString('uk', { day:'numeric', month:'short' }) : '';
+  function render(list){
+    const games = Account.games, week = Date.now() - 7 * 86400000;
+    const active = list.filter(u=>u.last > week).length, joined = list.filter(u=>u.joined).length;
+    const paces = list.map(u=>u.pace).filter(Boolean);
+    $('stat').innerHTML = `<span><b>${list.length}</b>учнів</span><span><b>${joined}</b>увійшли в акаунт</span><span><b>${active}</b>грали цього тижня</span>` +
+      (paces.length ? `<span><b>${Math.round(paces.reduce((a, b)=>a + b, 0) / paces.length)}</b>зн/хв у середньому</span>` : '');
+    $('table').innerHTML = `<tr><th class="n">Учень</th><th>Востаннє</th><th>Зн/хв</th>${games.map(([, ico, name])=>`<th title="${esc(name)}"><span class="gi">${ico}</span></th>`).join('')}<th>Ігор</th></tr>` +
+      list.map(u=>{
+        const cls = !u.joined ? 'never' : u.last < week ? 'old' : '';
+        const cells = games.map(([id])=>{
+          const g = u.games[id];
+          return g && g.r ? `<td title="${g.p} балів · ${g.s} наліпок · ${day(g.t)}">${g.r}</td>` : '<td class="z">·</td>';
+        }).join('');
+        const n = games.filter(([id])=>u.games[id]?.r || u.played.includes(id)).length;
+        return `<tr class="${cls}"><td class="n">${esc(u.name)}${u.nick ? ` <small>${esc(u.nick)}</small>` : ''}</td>
+          <td>${u.joined ? day(u.last) || '—' : 'ще ні'}</td><td>${u.pace || ''}</td>${cells}<td>${n}</td></tr>`;
+      }).join('');
+    $('view').hidden = false;
+  }
+})();
+</script>
+</body>
+</html>

@@ -67,8 +67,42 @@ def valid_pics(p):
     return isinstance(p, list) and len(p) == 2 and all(isinstance(x, int) and 0 <= x < 9 for x in p)
 
 
+TEACHER_PIN = os.environ.get("MOCK_TEACHER_PIN", "000000")  # у Google — властивість скрипту TEACHER_PIN
+
+
+def teacher(req):
+    a = req.get("a")
+    if "".join(c for c in str(req.get("tpin") or "") if c.isdigit()) != TEACHER_PIN:
+        return {"error": "pin"}
+    if a == "teacherClasses":
+        return {"ok": True, "classes": [{"name": n, "count": sum(1 for s in STUDENTS if s[0] == n)} for n in CLASSES.values()]}
+    students = [s for s in STUDENTS if s[0] == req.get("cls")]
+    lab = labels(students)
+    out = []
+    for s in students:
+        u = {"name": lab[id(s)], "nick": s[NICK], "joined": bool(s[PICS]), "games": {}, "pace": 0, "played": [], "last": 0}
+        for (i, game), doc in PROGRESS.items():
+            if i != s[ID]:
+                continue
+            d, t = doc.get("data") or {}, doc.get("t", 0)
+            if game == "shared":
+                u["pace"] = round((d.get("pace") or {}).get("all", 0))
+                u["played"] = list((d.get("played") or {}).keys())
+                continue
+            g = u["games"].setdefault(game.replace("-boost", "").rsplit("-v", 1)[0], {"r": 0, "p": 0, "s": 0, "t": 0})
+            g["r"] += d.get("races") or d.get("rounds") or d.get("games") or 0
+            g["p"] += d.get("neurons") or d.get("total") or 0
+            g["s"] += len(d.get("stickers") or {})
+            g["t"] = max(g["t"], t)
+            u["last"] = max(u["last"], t)
+        out.append(u)
+    return {"ok": True, "students": sorted(out, key=lambda u: u["name"])}
+
+
 def handle(req):
     a = req.get("a")
+    if a in ("teacherClasses", "teacherOverview"):
+        return teacher(req)
     if a in ("classList", "setup", "login"):
         name, students = find(req.get("pin"))
         if name is None:
@@ -111,7 +145,7 @@ def handle(req):
             if cur and cur["v"] != doc.get("v"):
                 conflicts[game] = cur
                 continue
-            PROGRESS[(sid, game)] = {"v": (cur["v"] if cur else 0) + 1, "data": doc.get("data")}
+            PROGRESS[(sid, game)] = {"v": (cur["v"] if cur else 0) + 1, "data": doc.get("data"), "t": int(time.time() * 1000)}
             saved[game] = PROGRESS[(sid, game)]["v"]
         for (i, game), cur in PROGRESS.items():
             if i == sid and game not in saved and game not in conflicts and (req.get("have") or {}).get(game, 0) < cur["v"]:

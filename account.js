@@ -17,6 +17,8 @@
 //   Account.setShared(name, value) — зберегти його
 //   Account.on('update', fn) — fn(key, data): дані змінилися з іншого пристрою (дані вже зведено й збережено)
 //   Account.logout()         — вийти; сторінка перезавантажується й показує вхід
+//   Account.played()         — учень завершив раунд у цій грі (для «Моїх ігор» і наліпок за кількість ігор)
+//   Account.showGames()      — вікно «Мої ігри» (гра відкриває його кліком на аватар у профілі)
 (()=>{
   const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   // Адреса вебзастосунку Apps Script (Розгорнути → Керувати розгортаннями). Порожня — акаунта немає, ігри працюють по-старому
@@ -245,7 +247,57 @@
   if(session && !session.guest) schedule(1500);
   else if(dirtyRecs().length) schedule(1500);
 
+  /* ---------- «Мої ігри»: у які ігри сайту учень уже грав, і наліпки за їх кількість ---------- */
+  // Гра кличе Account.played() після кожного завершеного раунду (рахується перший), а Account.showGames() — після
+  // кліку на аватар у профілі. Позначки — у спільних даних акаунта (shared.played), тож ідуть за учнем на інші пристрої
+  const GAMES = [['typing-race-kids', '🚗', 'Клавіатурні перегони'], ['balloon-race-kids', '🎈', 'Повітряні перегони'], ['water-race-kids', '🚣', 'Перегони на воді'],
+    ['keyboard-residents-kids', '⌨️', 'Мешканці клавіатури'], ['mouse-race-kids', '🐭', 'Мишачі перегони'], ['double-click-kids', '👆', 'Двічі клац!'],
+    ['word-bricks-kids', '🧱', 'Цеглинки слів'], ['hot-keys', '🤖', 'Гарячі клавіші']];
+  const GAME_STICKERS = [[2, '🌱', 'Дві гри'], [4, '🌿', 'Чотири гри'], [6, '🌳', 'Шість ігор'], [GAMES.length, '🏆', 'Усі ігри']];
+  const playedCount = played=>GAMES.filter(([id])=>played[id]).length;
+  Account.games = GAMES;                // для огляду класу (/teacher/class/): [id, значок, назва]
+  Account.api = req=>call(req);         // огляд класу питає сервер сам: { a:'teacherClasses' | 'teacherOverview', tpin, … }
+  Account.played = (game = location.pathname.split('/')[1])=>{
+    if(!session) return;
+    const played = Account.shared('played');
+    if(played[game]) return;
+    const before = GAME_STICKERS.filter(([n])=>playedCount(played) >= n).length;
+    played[game] = Math.floor(Date.now() / 86400000);
+    Account.setShared('played', played);
+    const now = GAME_STICKERS.filter(([n])=>playedCount(played) >= n);
+    if(now.length > before){ const [, ico, name] = now[now.length - 1]; toast(`${ico} Нова наліпка «${name}» — у «Моїх іграх»`); }
+  };
+  let toastEl = null, toastTimer = 0;
+  function toast(text){
+    ensureCss();
+    if(!toastEl){ toastEl = document.createElement('div'); toastEl.className = 'acc-toast'; document.body.appendChild(toastEl); }
+    toastEl.textContent = text;
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toastEl.hidden = true, 4500);
+  }
+  Account.showGames = ()=>{
+    if(!session) return;
+    ensureCss();
+    const played = Account.shared('played'), n = playedCount(played), here = location.pathname.split('/')[1];
+    const box = document.createElement('div');
+    box.id = 'accGames';
+    box.className = 'acc';
+    box.innerHTML = `<div class="acc-card acc-games"><button class="ghost acc-x" type="button" aria-label="Закрити">✕</button>
+      <h2>Мої ігри</h2><p>Зіграно ${n} з ${GAMES.length}</p>
+      <div class="acc-glist">${GAMES.map(([id, ico, name])=>`<a class="acc-g${played[id] ? '' : ' no'}${id === here ? ' here' : ''}" href="/${id}/">
+        <span class="acc-gi">${ico}</span><span>${esc(name)}</span><small>${played[id] ? '✓ зіграно' : 'ще ні'}</small></a>`).join('')}</div>
+      <h3>Наліпки</h3>
+      <div class="acc-slist">${GAME_STICKERS.map(([k, ico, name])=>`<span class="acc-s${n >= k ? '' : ' no'}"><span class="acc-gi">${ico}</span>${esc(name)}<small>${n >= k ? 'є!' : `ще ${k - n}`}</small></span>`).join('')}</div></div>`;
+    const close = ()=>{ box.remove(); document.removeEventListener('keydown', onKey, true); };
+    const onKey = e=>{ e.stopPropagation(); if(e.key === 'Escape') close(); };   // клавіші — не грі під вікном
+    box.addEventListener('click', e=>{ if(e.target === box || e.target.closest('.acc-x')) close(); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(box);
+  };
+
   /* ---------- Вікно входу ---------- */
+  const ensureCss = ()=>{ if(document.getElementById('accCss')) return; const st = document.createElement('style'); st.id = 'accCss'; st.textContent = css; document.head.appendChild(st); };
   const css = `
     .acc{--ink:#1B1B3A; --soft:#514F72; --teal:#16A3A0; --teal-d:#0E7C7A; --line:#E4E1F5; --coral:#C2410C;
       font-family:'Nunito Sans',system-ui,sans-serif; color:var(--ink); line-height:1.45; box-sizing:border-box;}
@@ -279,6 +331,22 @@
     .acc-steps i{width:9px; height:9px; border-radius:50%; background:var(--line);}
     .acc-steps i.on{background:var(--teal);}
     .acc-wait{margin:18px 0 6px; font-weight:700; color:var(--soft);}
+    #accGames{position:fixed; inset:0; z-index:2147483644; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(27,27,58,.55); overflow:auto;}
+    .acc-games{position:relative; max-width:560px;}
+    .acc-games h3{font-family:'Baloo 2',system-ui,sans-serif; font-size:19px; margin:16px 0 6px;}
+    .acc-x{position:absolute; top:10px; right:12px; text-decoration:none !important; font-size:18px !important;}
+    .acc-glist{display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:8px; margin-top:14px;}
+    .acc-g, .acc-s{display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 6px 8px; border-radius:16px; background:#E3F7F6;
+      color:var(--ink); text-decoration:none; font-weight:700; font-size:14px; line-height:1.25;}
+    .acc-g.here{outline:2px solid var(--teal);}
+    .acc-g:hover{background:#CDEFEE;}
+    .acc-g.no, .acc-s.no{background:#F6F5FB; color:var(--soft);}
+    .acc-g.no .acc-gi, .acc-s.no .acc-gi{filter:grayscale(1); opacity:.45;}
+    .acc-g small, .acc-s small{font-weight:600; font-size:12px; color:var(--soft);}
+    .acc-gi{font-size:32px; line-height:1.1; font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;}
+    .acc-slist{display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;}
+    .acc-toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:2147483645; background:#1B1B3A; color:#fff; border-radius:999px;
+      padding:9px 18px; font:700 15px 'Nunito Sans',system-ui,sans-serif; box-shadow:0 8px 24px rgba(27,27,58,.3); max-width:calc(100% - 24px); text-align:center;}
     .acc-badge{position:fixed; left:10px; bottom:10px; z-index:2147483645; background:#FFF4E5; color:#9A3412; border:1.5px solid #FDBA74;
       border-radius:999px; padding:4px 12px; font:700 13px 'Nunito Sans',system-ui,sans-serif; cursor:help;}`;
 
@@ -288,9 +356,7 @@
 
   function openLogin(step){
     if(!box){
-      const st = document.createElement('style');
-      st.textContent = css;
-      document.head.appendChild(st);
+      ensureCss();
       box = document.createElement('div');
       box.id = 'accLogin';
       box.className = 'acc';

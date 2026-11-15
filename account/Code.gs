@@ -26,7 +26,7 @@ function doPost(e){
   let req;
   try{ req = JSON.parse(e.postData.contents); }catch(err){ return json({ error:'bad-request' }); }
   try{
-    const fn = { classList, setup, login, sync }[req.a];
+    const fn = { classList, setup, login, sync, teacherClasses, teacherOverview }[req.a];
     return json(fn ? fn(req) : { error:'bad-request' });
   }catch(err){
     console.error(err);
@@ -236,6 +236,71 @@ function sync(req){
     });
     return { ok:true, saved, conflicts, fresh, tooBig, cls:classKey(s.r[S.CLASS]) };   // cls — тим, хто увійшов до появи дуелей
   }finally{ lock.releaseLock(); }
+}
+
+/* ---------- Огляд класу для вчителя (/teacher/class/) ---------- */
+// PIN вчителя — у властивостях скрипту (Налаштування проєкту → Властивості скрипту → TEACHER_PIN), не в коді:
+// код сайту відкритий. Після 20 хибних PIN за 10 хвилин сервер до кінця цих 10 хвилин їх не перевіряє
+function teacherCheck(pin){
+  const want = String(PropertiesService.getScriptProperties().getProperty('TEACHER_PIN') || '').replace(/\D/g, '');
+  if(!want) return { error:'no-teacher-pin' };
+  const cache = CacheService.getScriptCache(), bucket = 'tpinfail-' + Math.floor(Date.now() / 600000);
+  if(+(cache.get(bucket) || 0) >= 20) return { error:'busy' };
+  if(String(pin || '').replace(/\D/g, '') !== want){
+    cache.put(bucket, String(+(cache.get(bucket) || 0) + 1), 700);
+    Utilities.sleep(1000);
+    return { error:'pin' };
+  }
+  return null;
+}
+
+function teacherClasses(req){
+  const err = teacherCheck(req.tpin);
+  if(err) return err;
+  const st = rows(studentsSheet());
+  const classes = rows(classesSheet()).map(r=>String(r[0]).trim()).filter(Boolean).map(name=>({
+    name, count:st.filter(s=>String(s[S.CLASS]).trim() === name && String(s[S.FIRST]).trim()).length,
+  }));
+  return { ok:true, classes };
+}
+
+// Зведення класу: для кожного учня й кожної гри — скільки раундів (races / rounds / games), балів (neurons / total),
+// наліпок і коли грав востаннє; ще звична швидкість друку (pace.all) і в які ігри вже грав (played)
+function teacherOverview(req){
+  const err = teacherCheck(req.tpin);
+  if(err) return err;
+  const name = String(req.cls || '').trim();
+  const students = [];
+  rows(studentsSheet()).forEach((r, i)=>{ if(String(r[S.CLASS]).trim() === name && String(r[S.FIRST]).trim()) students.push({ row:i + 2, r }); });
+  const lab = labels(students);
+  const list = students.map(s=>{
+    const u = userOf(s, lab.get(s));
+    return { name:u.name, nick:u.nick, id:u.id, joined:!!String(s.r[S.PICS]).trim(), games:{}, pace:0, played:[], last:0 };
+  });
+  const byId = {};
+  list.forEach(u=>{ if(u.id) byId[u.id] = u; });
+  rows(progressSheet()).forEach(p=>{
+    const u = byId[String(p[P.ID])];
+    if(!u) return;
+    let d;
+    try{ d = JSON.parse(p[P.DATA]); }catch(e){ return; }
+    const t = p[P.TIME] instanceof Date ? p[P.TIME].getTime() : 0;
+    if(p[P.GAME] === 'shared'){
+      u.pace = Math.round((d.pace && d.pace.all) || 0);
+      u.played = Object.keys(d.played || {});
+      return;
+    }
+    const game = String(p[P.GAME]).replace(/(-boost)?-v\d+$/, '');   // звичайний і ?boost — одна гра
+    const g = u.games[game] || (u.games[game] = { r:0, p:0, s:0, t:0 });
+    g.r += +(d.races || d.rounds || d.games || 0);
+    g.p += +(d.neurons || d.total || 0);
+    g.s += Object.keys(d.stickers || {}).length;
+    g.t = Math.max(g.t, t);
+    u.last = Math.max(u.last, t);
+  });
+  list.forEach(u=>delete u.id);
+  list.sort((a, b)=>a.name.localeCompare(b.name, 'uk'));
+  return { ok:true, students:list };
 }
 
 // Запустити один раз із редактора: створює аркуші з заголовками й секрет
