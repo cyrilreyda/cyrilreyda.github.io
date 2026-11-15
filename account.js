@@ -226,6 +226,14 @@
       Account.save('shared', all);
     },
     on(ev, fn){ (listeners[ev] ||= []).push(fn); },
+    // Сторінка вчителя: ключ класу за PIN (той самий список класу, що й при вході учня). { cls } або { error }
+    async classKey(pin){
+      let r;
+      try{ r = await call({ a:'classList', pin:String(pin).replace(/\D/g, '') }); }catch(e){ return { error:'net' }; }
+      if(!r.ok) return { error:r.error || 'server' };
+      const cls = r.students.find(s=>s.cls)?.cls;
+      return cls ? { cls, count:r.students.length } : { error:'empty' };
+    },
     logout(){
       setJ(SESSION, null);
       location.reload();

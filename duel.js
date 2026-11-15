@@ -16,6 +16,7 @@
 //   Duel.pos(n)            — скільки знаків уже надруковано (часто кликати можна: відправляється не частіше ніж раз на 0,2 с)
 //   Duel.finish()          — учень доїхав
 //   Duel.leave()           — вийти з дуелі (повернувся в гараж, закрив заїзд)
+//   Duel.db(), Duel.serverNow(), Duel.offline() — з'єднання з базою для перегонів класом (classrace.js)
 (()=>{
   const ACC = window.Account;
   if(!ACC) return;
@@ -234,6 +235,10 @@
   /* ---------- API для гри ---------- */
   const Duel = {
     available(){ const u = ACC.user; return !!(u && !u.guest && u.cls); },
+    // Для перегонів класом (classrace.js, сторінка вчителя): з'єднання з базою (null — немає зв'язку) і час сервера
+    async db(){ return await connect() ? db : null; },
+    serverNow,
+    offline(){ db?.goOffline(); },
     async open(o){
       if(!Duel.available()) return;
       opts = o;

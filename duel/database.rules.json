@@ -41,6 +41,35 @@
             "$other": { ".validate": false }
           }
         },
+        "race": {
+          ".read": true,
+          ".write": true,
+          ".validate": "newData.hasChildren(['state', 'round', 'game'])",
+          "state": { ".validate": "newData.isString() && newData.val().matches(/^(lobby|race|stop)$/)" },
+          "round": { ".validate": "newData.isNumber()" },
+          "game": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "track": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "lang": { ".validate": "newData.isString() && newData.val().length <= 5" },
+          "seed": { ".validate": "newData.isNumber()" },
+          "start": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        },
+        "cp": {
+          ".read": true,
+          "$id": {
+            ".write": true,
+            ".validate": "newData.hasChildren(['label', 'round'])",
+            "label": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "model": { ".validate": "newData.isString() && newData.val().length <= 20" },
+            "color": { ".validate": "newData.isString() && newData.val().length <= 20" },
+            "badge": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "round": { ".validate": "newData.isNumber()" },
+            "pos": { ".validate": "newData.isNumber()" },
+            "len": { ".validate": "newData.isNumber()" },
+            "fin": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
         "$other": { ".validate": false }
       }
     }

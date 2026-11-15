@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Перегони класом · Інформатика в 131-й</title>
+<meta name="robots" content="noindex">
+<link href="../../fonts/fonts.css" rel="stylesheet">
+<link rel="icon" type="image/png" href="../../icons/icon-192.png">
+<!-- Перегони класом для вчителя й проєктора: учитель вводить PIN класу, відкриває заїзд, учні натискають «Клас» у грі
+     й з'являються тут, «Старт» запускає відлік в усіх. Під час заїзду — усі учасники на одній трасі, потім таблиця місць.
+     Дані — у базі Firebase через /duel.js; ключ класу дає /account.js за PIN. Захисту, окрім PIN класу, немає -->
+<script src="/account.js"></script>
+<script src="/duel.js"></script>
+<style>
+  :root{--ink:#1B1B3A; --soft:#514F72; --teal:#16A3A0; --teal-d:#0E7C7A; --line:#E4E1F5; --bg:#F6F5FB; --coral:#C2410C; --gold:#F5B700;}
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:'Nunito Sans',system-ui,sans-serif; line-height:1.45;}
+  main{max-width:1200px; margin:0 auto; padding:20px 16px 40px;}
+  h1{font-family:'Baloo 2',system-ui,sans-serif; font-weight:800; font-size:clamp(28px, 4vw, 44px); margin:0 0 4px;}
+  .sub{color:var(--soft); font-size:17px; margin:0 0 18px;}
+  .card{background:#fff; border:1.5px solid var(--line); border-radius:22px; padding:18px 20px; margin-bottom:16px;}
+  .bar{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+  input, select{font:inherit; font-size:18px; padding:8px 12px; border:2px solid var(--line); border-radius:14px; color:var(--ink); background:#fff;}
+  input.pin{width:9em; letter-spacing:.2em; text-align:center; font-weight:700;}
+  button{font-family:'Baloo 2',system-ui,sans-serif; font-weight:700; font-size:18px; border:none; border-radius:999px; padding:9px 22px; cursor:pointer; background:var(--teal); color:#fff;}
+  button:hover{background:var(--teal-d);}
+  button.light{background:#E3F7F6; color:var(--teal-d);}
+  button.stop{background:#FDE7DF; color:var(--coral);}
+  button:disabled{opacity:.45; cursor:default;}
+  .err{color:var(--coral); font-weight:700; min-height:1.4em; margin-top:6px;}
+  .state{font-family:'Baloo 2',system-ui,sans-serif; font-weight:700; font-size:clamp(22px, 3vw, 32px); margin:4px 0 12px;}
+  .count{font-size:clamp(60px, 9vw, 110px); font-family:'Baloo 2',system-ui,sans-serif; font-weight:800; line-height:1; color:var(--teal-d);}
+  .names{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .names span{background:var(--bg); border-radius:999px; padding:6px 14px; font-weight:700; font-size:clamp(16px, 1.8vw, 22px);}
+  .track{display:flex; flex-direction:column; gap:6px;}
+  .lane{display:grid; grid-template-columns:minmax(120px, 18%) 1fr 70px; gap:10px; align-items:center; font-size:clamp(15px, 1.7vw, 22px); font-weight:700;}
+  .lane .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .road{position:relative; height:clamp(20px, 2.6vw, 34px); background:#4B4B66; border-radius:10px; overflow:hidden;}
+  .road::after{content:''; position:absolute; right:0; top:0; bottom:0; width:8px; background:repeating-linear-gradient(0deg, #fff 0 6px, #1B1B3A 6px 12px);}
+  .road i{position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg, #16A3A0, #6EE7E2); border-radius:10px; transition:width .35s linear;}
+  .lane.done .road i{background:linear-gradient(90deg, #F5B700, #FFE27A);}
+  .lane .place{text-align:right; color:var(--soft);}
+  table{width:100%; border-collapse:collapse; font-size:clamp(17px, 2vw, 26px);}
+  td, th{padding:8px 10px; text-align:left; border-bottom:1.5px solid var(--line);}
+  th{color:var(--soft); font-size:.7em; font-weight:700;}
+  td.n{width:3em; font-family:'Baloo 2',system-ui,sans-serif; font-weight:800;}
+  tr.top td.n{color:var(--gold);}
+  .muted{color:var(--soft);}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<main>
+  <h1>🏫 Перегони класом</h1>
+  <p class="sub">Клавіатурні перегони: учні натискають «Клас» у грі, а ви запускаєте заїзд для всіх.</p>
+
+  <section class="card" id="login">
+    <div class="bar"><b>PIN класу</b><input class="pin" id="pin" inputmode="numeric" autocomplete="off" placeholder="······"><button id="pinBtn">Далі</button></div>
+    <div class="err" id="pinErr"></div>
+  </section>
+
+  <section class="card" id="ctl" hidden>
+    <div class="bar">
+      <label>Траса <select id="track">
+        <option value="city">Київ — основний ряд</option><option value="london">Лондон — верхній ряд</option>
+        <option value="forest">Ліс — слова</option><option value="desert">Пустеля — фрази</option><option value="arctic">Арктика — більше фраз</option>
+      </select></label>
+      <label>Мова <select id="lang"><option value="uk">українська</option><option value="en">англійська</option></select></label>
+      <button id="openBtn">Відкрити заїзд</button>
+      <button id="startBtn" disabled>🚦 Старт</button>
+      <button id="stopBtn" class="stop" disabled>Зупинити</button>
+      <button id="otherBtn" class="light">Інший клас</button>
+    </div>
+    <div class="err" id="ctlErr"></div>
+  </section>
+
+  <section class="card" id="view" hidden>
+    <div class="state" id="state"></div>
+    <div id="body"></div>
+  </section>
+</main>
+<script>
+(()=>{
+  const GAME = 'typing-race-kids';
+  const LEAD_MS = 5000;   // від «Старту» до «Руш!»: учні мають встигнути отримати час старту
+  const $ = id=>document.getElementById(id);
+  const esc = s=>String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let db = null, base = null, race = null, field = {}, tick = 0;
+
+  if(!window.Account || !window.Duel){ $('pinErr').textContent = 'Акаунт не підключено: сторінка працює лише на сайті ігор.'; return; }
+
+  $('pin').addEventListener('keydown', e=>{ if(e.key === 'Enter') $('pinBtn').click(); });
+  $('pinBtn').addEventListener('click', async ()=>{
+    $('pinErr').textContent = 'Шукаю клас…';
+    const r = await Account.classKey($('pin').value);
+    if(r.error){ $('pinErr').textContent = r.error === 'pin' ? 'Такого PIN немає.' : r.error === 'empty' ? 'У цьому класі ще немає учнів.' : r.error === 'busy' ? 'Забагато спроб. Зачекайте кілька хвилин.' : 'Немає зв\'язку з сервером.'; return; }
+    db = await Duel.db();
+    if(!db){ $('pinErr').textContent = 'Немає зв\'язку з базою перегонів.'; return; }
+    $('pinErr').textContent = '';
+    base = db.ref('duel/' + r.cls);
+    base.child('race').on('value', s=>{ race = s.val(); if(race && race.game !== GAME) race = null; render(); });
+    base.child('cp').on('value', s=>{ field = s.val() || {}; render(); });
+    $('login').hidden = true; $('ctl').hidden = false; $('view').hidden = false;
+    clearInterval(tick); tick = setInterval(render, 500);   // таймер заїзду
+  });
+  $('otherBtn').addEventListener('click', ()=>location.reload());
+
+  const write = v=>base.child('race').set(v).catch(()=>{ $('ctlErr').textContent = 'База не прийняла зміну. Оновіть правила Firebase (README каталогу, розділ «Разом»).'; });
+  $('openBtn').addEventListener('click', ()=>{ $('ctlErr').textContent = ''; write({ state:'lobby', round:(race?.round || 0) + 1, game:GAME }); });
+  $('startBtn').addEventListener('click', ()=>write({ state:'race', round:race.round, game:GAME, track:$('track').value, lang:$('lang').value,
+    seed:Math.floor(Math.random() * 2 ** 31), start:Duel.serverNow() + LEAD_MS }));
+  $('stopBtn').addEventListener('click', ()=>write({ state:'stop', round:race?.round || 0, game:GAME }));
+
+  const players = ()=>race ? Object.entries(field).filter(([, p])=>p.round === race.round).map(([id, p])=>({ id, ...p })) : [];
+  const fmt = ms=>{ const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+  function render(){
+    const list = players();
+    $('startBtn').disabled = !(race && race.state === 'lobby' && list.length);
+    $('stopBtn').disabled = !(race && race.state !== 'stop');
+    const body = $('body');
+    if(!race || race.state === 'stop'){
+      $('state').textContent = 'Натисніть «Відкрити заїзд»';
+      body.innerHTML = `<p class="muted">Потім учні натискають «🏫 Клас» у Клавіатурних перегонах і з'являються тут.</p>`;
+      return;
+    }
+    if(race.state === 'lobby'){
+      $('state').textContent = 'Чекаємо учнів';
+      body.innerHTML = `<div class="count">${list.length}</div><p class="muted">${list.length ? 'готові до старту' : 'Учні натискають «🏫 Клас» у грі'}</p>
+        <div class="names">${list.sort((a, b)=>String(a.label).localeCompare(String(b.label), 'uk')).map(p=>`<span>${esc(p.label)}</span>`).join('')}</div>`;
+      return;
+    }
+    // Заїзд: місце — за часом фінішу, далі за надрукованим
+    const total = Math.max(1, ...list.map(p=>p.len || 0), ...list.map(p=>p.pos || 0));   // len — довжина тексту від гри учня
+    const ranked = list.slice().sort((a, b)=>(a.fin && b.fin) ? a.fin - b.fin : a.fin ? -1 : b.fin ? 1 : (b.pos || 0) - (a.pos || 0));
+    const left = race.start - Duel.serverNow();
+    const done = ranked.length && ranked.every(p=>p.fin);
+    $('state').textContent = left > 0 ? `Старт через ${Math.ceil(left / 1000)}…` : done ? 'Усі на фініші!' : `Їдемо · ${fmt(-left)} · на фініші ${ranked.filter(p=>p.fin).length} з ${ranked.length}`;
+    const finished = ranked.filter(p=>p.fin);
+    const table = finished.length ? `<table><tr><th>Місце</th><th>Гравець</th><th>Час</th><th>Знаків/хв</th></tr>${finished.map((p, i)=>{
+        const ms = p.fin - race.start;
+        return `<tr class="${i < 3 ? 'top' : ''}"><td class="n">${i + 1}</td><td>${esc(p.label)}</td><td>${fmt(ms)}</td><td>${Math.round((p.pos || 0) / Math.max(1, ms) * 60000)}</td></tr>`;
+      }).join('')}</table>` : '';
+    const track = done ? '' : `<div class="track">${ranked.map((p, i)=>`<div class="lane${p.fin ? ' done' : ''}"><span class="name">${esc(p.label)}</span>
+        <span class="road"><i style="width:${Math.min(100, (p.pos || 0) / total * 100)}%"></i></span><span class="place">${p.fin ? '🏁 ' + (i + 1) : i + 1}</span></div>`).join('')}</div>`;
+    body.innerHTML = track + (table ? `<div style="margin-top:${track ? 18 : 0}px">${table}</div>` : '');
+  }
+})();
+</script>
+</body>
+</html>
