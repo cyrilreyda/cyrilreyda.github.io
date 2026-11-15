@@ -1,7 +1,7 @@
 // Офлайн-режим каталогу. Онлайн сторінка завжди береться з мережі (і оновлює збережену копію),
 // без інтернету — зі збереженої копії. Ігри мають власні sw.js у своїх папках; цей лише для файлів каталогу.
 // Після зміни списку FILES збільшити номер у CACHE, щоб браузери забрали нову копію.
-const CACHE = 'catalog-v7';
+const CACHE = 'catalog-v8';
 const FILES = ['./', './index.html', './manifest.webmanifest', './lock.js', './account.js', './teacher/', './teacher/index.html',
                './fonts/fonts.css', './fonts/baloo2-latin.woff2', './fonts/nunitosans-cyrillic.woff2', './fonts/nunitosans-latin.woff2',
                './icons/icon-192.png', './icons/icon-512.png', './img/emblem.png',
@@ -29,4 +29,10 @@ self.addEventListener('fetch', e=>{
   });
   const slow = new Promise((_, reject)=>setTimeout(()=>reject(new Error('timeout')), TIMEOUT));
   e.respondWith(Promise.race([fromNet, slow]).catch(fromCache));
+});
+
+// Каталог, відкритий з інтернетом, оновлює й власну збережену копію (сторінка — і так, решту файлів — тут). no-cache — умовний запит: файл, що не змінився, не завантажується вдруге
+self.addEventListener('message', e=>{
+  if(e.data !== 'refresh') return;
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES.map(f=>new Request(f, { cache:'no-cache' })))).catch(()=>{}));
 });

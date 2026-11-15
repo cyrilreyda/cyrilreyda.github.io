@@ -174,8 +174,12 @@
 // Офлайн-режим: після першого відкриття з інтернетом каталог відкривається й без мережі (див. sw.js).
 // Заразом реєструємо власні sw.js усіх ігор з карток: кожна гра зберігає себе так, ніби її вже відкрили.
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
-  for(const a of document.querySelectorAll('a.card')) navigator.serviceWorker.register(a.pathname + 'sw.js', { scope:a.pathname }).catch(()=>{});
+  // З інтернетом каталог просить кожну гру оновити свою збережену копію (разом зі спільними файлами сайту),
+  // тож після оновлення ігор досить відкрити каталог — кожну гру окремо відкривати не треба
+  // update() — бо повторна реєстрація не перевіряє, чи змінився sw.js гри: нова версія при встановленні сама збереже всі файли
+  const refresh = reg=>{ if(navigator.onLine) reg.update().catch(()=>{}).then(()=>reg.active?.postMessage('refresh')); };
+  navigator.serviceWorker.register('sw.js').then(refresh).catch(()=>{});
+  for(const a of document.querySelectorAll('a.card')) navigator.serviceWorker.register(a.pathname + 'sw.js', { scope:a.pathname }).then(refresh).catch(()=>{});
 }
 </script>
 </body>
