@@ -140,6 +140,7 @@
   // Старт: обидва знають текст, машинки й час. Ховаємо вікно й запускаємо гру так, щоб «Руш!» було в мить start
   function begin(r){
     room.started = true;
+    pendingPos = 0; lastSent = 0;   // лічильник попереднього заїзду не має потрапити в цей
     room.inv?.remove();
     leaveLobby();
     const m = r.meta, host = room.host;
