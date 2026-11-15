@@ -21,9 +21,9 @@ MAX_TRIES = 5
 DELAY = float(sys.argv[1]) if len(sys.argv) > 1 else 0.6  # секунд на відповідь, як у Google
 
 CLASSES = {"123456": "3-А", "654321": "4-Б"}
-STUDENTS = [  # клас, ім'я, прізвище, нік, малюнки, помилки, id, покоління
-    ["3-А", "Оля", "Коваленко"], ["3-А", "Оля", "Кравчук"], ["3-А", "Максим", "Шевчук"],
-    ["3-А", "Софія", "Бондар"], ["3-А", "Артем", "Мельник"], ["4-Б", "Іван", "Ткаченко"],
+STUDENTS = [  # клас, прізвище, ім'я, нік, малюнки, помилки, id, покоління
+    ["3-А", "Ко", "Оля"], ["3-А", "Кр", "Оля"], ["3-А", "Ш", "Максим"],
+    ["3-А", "Б", "Софія"], ["3-А", "М", "Артем"], ["4-Б", "Т", "Іван"],
 ]
 STUDENTS = [r + ["", "", 0, uuid.uuid4().hex[:8], 0] for r in STUDENTS]
 PROGRESS = {}  # (id, гра) -> {"v": int, "data": obj}
@@ -38,8 +38,8 @@ def labels(students):
     out = {}
     for s in students:
         n = 1
-        short = lambda x, k: x[1] + (" " + x[2][:k] + "." if x[2] else "")
-        while n < len(s[2]) and any(o is not s and o[1] == s[1] and short(o, n) == short(s, n) for o in students):
+        short = lambda x, k: x[2] + (" " + x[1][:k] + "." if x[1] else "")
+        while n < len(s[1]) and any(o is not s and o[2] == s[2] and short(o, n) == short(s, n) for o in students):
             n += 1
         out[id(s)] = short(s, n)
     return out

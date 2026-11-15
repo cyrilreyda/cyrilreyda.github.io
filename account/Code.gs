@@ -8,14 +8,14 @@
  */
 
 const SHEET_CLASSES = 'Класи';     // A: клас (лише для вчителя), B: PIN класу
-const SHEET_STUDENTS = 'Учні';     // A: клас, B: ім'я, C: прізвище, D: нік, E: малюнки, F: помилки, G: id, H: покоління
+const SHEET_STUDENTS = 'Учні';     // A: клас, B: прізвище (можна лише першу літеру), C: ім'я, D: нік, E: малюнки, F: помилки, G: id, H: покоління
 const SHEET_PROGRESS = 'Прогрес';  // A: id, B: гра, C: версія, D: дані, E: оновлено
 const MAX_TRIES = 5;               // стільки помилок з малюнками — і вхід закрито, доки вчитель не скине
 const MAX_DOC = 45000;             // у клітинці таблиці не більше 50 000 знаків
 const PIN_FAILS_PER_10_MIN = 100;  // стільки хибних PIN за 10 хвилин на всіх — далі PIN не перевіряються до кінця 10 хвилин
 const ANIMALS = 9, FOODS = 9;
 
-const S = { CLASS:0, FIRST:1, LAST:2, NICK:3, PICS:4, FAILS:5, ID:6, GEN:7 };
+const S = { CLASS:0, LAST:1, FIRST:2, NICK:3, PICS:4, FAILS:5, ID:6, GEN:7 };
 const P = { ID:0, GAME:1, VER:2, DATA:3, TIME:4 };
 
 function doGet(){
@@ -45,7 +45,7 @@ function sheet(name, header){
   return sh;
 }
 const classesSheet = ()=>sheet(SHEET_CLASSES, ['Клас', 'PIN']);
-const studentsSheet = ()=>sheet(SHEET_STUDENTS, ['Клас', "Ім'я", 'Прізвище', 'Нік', 'Малюнки', 'Помилки', 'id', 'Покоління']);
+const studentsSheet = ()=>sheet(SHEET_STUDENTS, ['Клас', 'Прізвище', "Ім'я", 'Нік', 'Малюнки', 'Помилки', 'id', 'Покоління']);
 const progressSheet = ()=>sheet(SHEET_PROGRESS, ['id', 'Гра', 'Версія', 'Дані', 'Оновлено']);
 
 function rows(sh){
