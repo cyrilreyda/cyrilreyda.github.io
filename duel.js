@@ -1,4 +1,5 @@
-// Дуель з однокласником: двоє друкують той самий текст одночасно, кожен бачить на трасі машинку суперника.
+// «Разом»: двоє однокласників друкують той самий текст одночасно, кожен бачить на трасі машинку іншого.
+// У коді й у базі це й далі «дуель» (duel), учні бачать лише «Разом».
 // Підключається в <head> гри після /account.js: <script src="/duel.js">. Однокласників знаходимо за прихованим ключем
 // класу з акаунта (Account.user.cls). Обмін — через Firebase Realtime Database (бібліотека вантажиться, лише коли
 // учень відкриває дуель). Немає інтернету — гра пропонує їхати самому з роботом.
@@ -93,7 +94,7 @@
     const inv = base.child(`inv/${toId}/${me.id}`);
     inv.onDisconnect().remove();
     inv.set({ room:id, label:me.label, desc:set.desc || '', at:firebase.database.ServerValue.TIMESTAMP })
-      .catch(()=>{ if(room?.id === id){ dropRoom(); render('Виклик не надіслався. Спробуй ще раз.'); } });   // напр., база відкинула завеликий запис
+      .catch(()=>{ if(room?.id === id){ dropRoom(); render('Запрошення не надіслалося. Спробуй ще раз.'); } });   // напр., база відкинула завеликий запис
     room.inv = inv;
     roomRef.on('value', s=>{
       const r = s.val();
@@ -117,7 +118,7 @@
     roomRef.on('value', s=>{
       const r = s.val();
       if(!room || room.id !== inv.room) return;
-      if(!r){ if(!room.started){ dropRoom(); render(`${inv.label} скасував дуель.`); } else oppLeft(); return; }
+      if(!r){ if(!room.started){ dropRoom(); render('Запрошення скасовано.'); } else oppLeft(); return; }
       if(r.start && !room.started) begin(r);
     });
     render();
@@ -203,22 +204,22 @@
     if(msg !== undefined) note = msg;
     if(!box || room?.started) return;
     if(room && room.host){
-      card(`<div class="duel-big">⏳</div><h2>Чекаю на відповідь</h2><p>${esc(room.toLabel)} бачить твій виклик. Щойно прийме — почнеться відлік.</p>
+      card(`<div class="duel-big">⏳</div><h2>Чекаю на відповідь</h2><p>${esc(room.toLabel)} бачить твоє запрошення. Щойно прийме — почнеться відлік.</p>
         <div class="row"><button class="light" data-a="cancel">Скасувати</button></div>`);
       on('[data-a="cancel"]', ()=>{ dropRoom(); render(''); });
       return;
     }
     if(room && !room.host){
-      card(`<div class="duel-big">🏁</div><h2>Дуель з ${esc(room.fromLabel)}</h2><p>Зараз почнеться відлік…</p>`);
+      card(`<div class="duel-big">🏁</div><h2>Разом з ${esc(room.fromLabel)}</h2><p>Зараз почнеться відлік…</p>`);
       return;
     }
     const fresh = serverNow() - 3 * 60e3;
     const others = Object.entries(lobby).filter(([id, v])=>id !== me.id && v && v.game === GAME && (v.at || 0) > fresh)
       .sort((a, b)=>String(a[1].label).localeCompare(String(b[1].label), 'uk'));
     const inv = Object.entries(invites).filter(([, v])=>v && v.room);
-    card(`<div class="duel-big">⚔️</div><h2>Дуель з однокласником</h2>
-      <p>${others.length ? 'Обери, кого покликати. У списку ті, хто зараз відкрив «Дуель» у цій грі.' : 'Поки тут нікого. Попроси друга відкрити «Дуель» у своїй грі — і він з\'явиться тут.'}</p>
-      ${inv.map(([id, v])=>`<div class="duel-inv"><b>${esc(v.label)} кличе тебе на дуель!</b>${v.desc ? `<small>${esc(v.desc)}</small>` : ''}
+    card(`<div class="duel-big">🧑‍🤝‍🧑</div><h2>Перегони разом</h2>
+      <p>${others.length ? 'Обери, з ким поїхати. Тут ті, хто зараз натиснув «Разом» у цій грі.' : 'Поки тут нікого. Попроси друга натиснути «Разом» у своїй грі — і він з\'явиться тут.'}</p>
+      ${inv.map(([id, v])=>`<div class="duel-inv"><b>${esc(v.label)} кличе тебе поїхати разом!</b>${v.desc ? `<small>${esc(v.desc)}</small>` : ''}
         <div class="row"><button data-acc="${esc(id)}">Прийняти</button><button class="light" data-no="${esc(id)}">Ні</button></div></div>`).join('')}
       ${others.length ? `<div class="duel-list">${others.map(([id, v])=>`<div class="duel-item"><span>${esc(v.label)}</span><button data-inv="${esc(id)}">Покликати</button></div>`).join('')}</div>` : ''}
       <div class="err">${esc(note)}</div>
@@ -240,7 +241,7 @@
       card(`<div class="duel-big">📡</div><h2>Підключаюсь…</h2><p>Шукаю однокласників.</p>`);
       if(!await connect()){
         db?.goOffline();
-        card(`<div class="duel-big">📵</div><h2>Немає зв'язку</h2><p>Без інтернету дуель не вийде. Можна поїхати самому з роботом.</p>
+        card(`<div class="duel-big">📵</div><h2>Немає зв'язку</h2><p>Без інтернету разом не поїхати. Можна поїхати з роботом.</p>
           <div class="row"><button data-a="solo">🚦 Їхати з роботом</button><button class="light" data-a="close">Закрити</button></div>`);
         on('[data-a="solo"]', ()=>{ closeBox(); opts.solo(); });
         on('[data-a="close"]', closeBox);
