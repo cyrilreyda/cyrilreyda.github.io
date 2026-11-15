@@ -48,9 +48,10 @@ const classesSheet = ()=>sheet(SHEET_CLASSES, ['Клас', 'PIN']);
 const studentsSheet = ()=>sheet(SHEET_STUDENTS, ['Клас', 'Прізвище', "Ім'я", 'Нік', 'Малюнки', 'Помилки', 'id', 'Покоління']);
 const progressSheet = ()=>sheet(SHEET_PROGRESS, ['id', 'Гра', 'Версія', 'Дані', 'Оновлено']);
 
+// Щонайменше 8 стовпців: поки «Нік», «Малюнки» тощо ще порожні, таблиця їх не рахує, а скрипт має бачити їх порожніми
 function rows(sh){
   const n = sh.getLastRow() - 1;
-  return n > 0 ? sh.getRange(2, 1, n, sh.getLastColumn()).getValues() : [];
+  return n > 0 ? sh.getRange(2, 1, n, Math.max(8, sh.getLastColumn())).getValues() : [];
 }
 
 function secret(){
