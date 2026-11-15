@@ -20,6 +20,8 @@
   if(!ACC || !DUEL) return;
   const GAME = location.pathname.split('/')[1] || 'game';
   const COUNTDOWN_MS = 2250;
+  // Значок «Клас»: троє дітей. Емодзі групи людей Windows 10 малює погано або зовсім не знає, тож малюємо самі
+  const ICON = '<svg class="klass-ico" viewBox="0 0 40 28" aria-hidden="true" style="height:1em; width:1.43em; vertical-align:-.12em"><path d="M1.5 28c0-6.2 3.6-9.4 8.5-9.4s8.5 3.2 8.5 9.4z" fill="#F08A5D"/><circle cx="10" cy="12.2" r="5" fill="#F2C39B"/><path d="M4.9 12c-.3-4 2.2-6.3 5.1-6.3s5.4 2.3 5.1 6.3c-1-1.9-2.9-2.9-5.1-2.9s-4.1 1-5.1 2.9z" fill="#7A4B2A"/><path d="M21.5 28c0-6.2 3.6-9.4 8.5-9.4s8.5 3.2 8.5 9.4z" fill="#6C5CE7"/><circle cx="30" cy="12.2" r="5" fill="#E8B48A"/><path d="M24.8 12.6c-.6-4.3 1.9-6.9 5.2-6.9s5.8 2.6 5.2 6.9l-.9-1.8c-.9-1.3-2.4-2-4.3-2s-3.4.7-4.3 2z M34.6 9.5c1.6.4 2.6 2 2.3 4.6-.9-.6-1.6-1.6-1.9-2.9z" fill="#2B2B3A"/><path d="M10.2 28c0-7.2 4.3-10.8 9.8-10.8s9.8 3.6 9.8 10.8z" fill="#16A3A0" stroke="#fff" stroke-width="1.2"/><circle cx="20" cy="10.6" r="5.7" fill="#F2C39B" stroke="#fff" stroke-width="1.2"/><path d="M14.2 10.4c-.3-4.6 2.5-7.2 5.8-7.2s6.1 2.6 5.8 7.2c-.8-1.6-2.2-2.6-3.6-3-.7 1.2-2.6 2-4.6 2-1.4 0-2.6-.4-3.4.9z" fill="#D9822B"/></svg>';
   const SEND_MS = 300;    // прогрес — не частіше ніж раз на 0,3 с: учасників багато, а між оновленнями машинки їдуть плавно
 
   const esc = s=>String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -103,10 +105,12 @@
     const list = race ? roster() : [];
     const names = list.length ? `<div class="klass-list">${list.map(p=>`<span class="${p.id === me.id ? 'me' : ''}">${esc(p.label)}</span>`).join('')}</div>` : '';
     let body;
-    if(!race || race.state === 'stop') body = `<div class="klass-big">🏫</div><h2>Перегони класом</h2>
+    if(!race || race.state === 'stop') body = `<div class="klass-big">${ICON}</div><h2>Перегони класом</h2>
       <p>Учитель ще не відкрив заїзд. Чекай тут — щойно відкриє, ти будеш у списку.</p>`;
-    else if(race.state === 'lobby') body = `<div class="klass-big">🏫</div><h2>Чекаємо на старт</h2>
+    else if(race.state === 'lobby') body = `<div class="klass-big">${ICON}</div><h2>Чекаємо на старт</h2>
       <p>Ти в заїзді класу. Учитель натисне «Старт», і почнеться відлік. Уже готові: ${list.length}.</p>${names}`;
+    else if(race.round === played) body = `<div class="klass-big">${ICON}</div><h2>Чекаємо на наступний заїзд</h2>
+      <p>Інші ще фінішують. Щойно вчитель відкриє новий заїзд, ти будеш у ньому.</p>`;
     else body = `<div class="klass-big">⏳</div><h2>Заїзд уже йде</h2>
       <p>Дочекайся наступного — ти потрапиш у нього сам, щойно вчитель його відкриє.</p>`;
     card(body + `<div class="row"><button class="ghost" data-a="close">Вийти</button></div>`);
@@ -115,6 +119,7 @@
 
   /* ---------- API для гри ---------- */
   const Klass = {
+    icon:ICON,   // для кнопки «Клас» у грі й сторінки вчителя
     available(){ return DUEL.available(); },
     async open(o){
       if(!Klass.available()) return;

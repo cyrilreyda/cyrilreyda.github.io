@@ -12,6 +12,7 @@
      Дані — у базі Firebase через /duel.js; ключ класу дає /account.js за PIN. Захисту, окрім PIN класу, немає -->
 <script src="/account.js"></script>
 <script src="/duel.js"></script>
+<script src="/classrace.js"></script>   <!-- лише заради значка «Клас» (троє дітей) -->
 <style>
   :root{--ink:#1B1B3A; --soft:#514F72; --teal:#16A3A0; --teal-d:#0E7C7A; --line:#E4E1F5; --bg:#F6F5FB; --coral:#C2410C; --gold:#F5B700;}
   *{box-sizing:border-box;}
@@ -52,7 +53,7 @@
 </head>
 <body>
 <main>
-  <h1>🏫 Перегони класом</h1>
+  <h1><span class="ico"></span> Перегони класом</h1>
   <p class="sub">Клавіатурні перегони: учні натискають «Клас» у грі, а ви запускаєте заїзд для всіх.</p>
 
   <section class="card" id="login">
@@ -88,6 +89,8 @@
   const esc = s=>String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let db = null, base = null, race = null, field = {}, tick = 0;
 
+  const ICON = window.Klass ? window.Klass.icon : '';
+  document.querySelectorAll('.ico').forEach(e=>e.innerHTML = ICON);
   if(!window.Account || !window.Duel){ $('pinErr').textContent = 'Акаунт не підключено: сторінка працює лише на сайті ігор.'; return; }
 
   $('pin').addEventListener('keydown', e=>{ if(e.key === 'Enter') $('pinBtn').click(); });
@@ -122,12 +125,12 @@
     const body = $('body');
     if(!race || race.state === 'stop'){
       $('state').textContent = 'Натисніть «Відкрити заїзд»';
-      body.innerHTML = `<p class="muted">Потім учні натискають «🏫 Клас» у Клавіатурних перегонах і з'являються тут.</p>`;
+      body.innerHTML = `<p class="muted">Потім учні натискають «${ICON} Клас» у Клавіатурних перегонах і з'являються тут.</p>`;
       return;
     }
     if(race.state === 'lobby'){
       $('state').textContent = 'Чекаємо учнів';
-      body.innerHTML = `<div class="count">${list.length}</div><p class="muted">${list.length ? 'готові до старту' : 'Учні натискають «🏫 Клас» у грі'}</p>
+      body.innerHTML = `<div class="count">${list.length}</div><p class="muted">${list.length ? 'готові до старту' : `Учні натискають «${ICON} Клас» у грі`}</p>
         <div class="names">${list.sort((a, b)=>String(a.label).localeCompare(String(b.label), 'uk')).map(p=>`<span>${esc(p.label)}</span>`).join('')}</div>`;
       return;
     }
