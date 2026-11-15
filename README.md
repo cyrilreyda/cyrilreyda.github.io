@@ -8,6 +8,7 @@
 | Двічі клац! | подвійне клацання, влучність | [double-click-kids](https://github.com/cyrilreyda/double-click-kids) |
 | Клавіатурні перегони | друк | [typing-race-kids](https://github.com/cyrilreyda/typing-race-kids) |
 | Повітряні перегони | друк без зупинок | [balloon-race-kids](https://github.com/cyrilreyda/balloon-race-kids) |
+| Перегони на воді | друк, річки й море України | [water-race-kids](https://github.com/cyrilreyda/water-race-kids) |
 | Гарячі клавіші | клавіатурні скорочення | [hot-keys](https://github.com/cyrilreyda/hot-keys) |
 | Мешканці клавіатури | службові клавіші, перетягування мишею | [keyboard-residents-kids](https://github.com/cyrilreyda/keyboard-residents-kids) |
 | Цеглинки слів | терміни інформатики й англійські слова, керування мишею | [word-bricks-kids](https://github.com/cyrilreyda/word-bricks-kids) |
