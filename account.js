@@ -19,7 +19,7 @@
 (()=>{
   const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   // Адреса вебзастосунку Apps Script (Розгорнути → Керувати розгортаннями). Порожня — акаунта немає, ігри працюють по-старому
-  const API = LOCAL ? 'http://localhost:8790/' : '';
+  const API = LOCAL ? 'http://localhost:8790/' : 'https://script.google.com/macros/s/AKfycbzntwAHNQg8lN-XZS6ZVeb6cgmUEsdviwB45gfOW8C9ww6X6rbocgquVLVGCLlNKhOv/exec';
   if(!API) return;
 
   const IDLE_CONFIRM = 30 * 60e3;   // після стількох хвилин без гри спитати «Це ти?» (класний комп'ютер, прийшов інший учень)
