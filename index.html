@@ -63,6 +63,12 @@
         border-radius:999px; padding:5px 20px;}
   .card:hover .play{background:var(--teal-dark);}
 
+  /* Збереження ігор для роботи без інтернету: хід під заголовком, незбережені ігри без інтернету — бляклі */
+  .save-note{margin:20px 0 0; padding:8px 16px; border-radius:var(--radius-m); background:#E3F7F6; color:var(--teal-dark); font-weight:600; font-size:15px;}
+  .save-note.warn{background:#FFF4D6; color:#8A5A00;}
+  .card.no-offline{opacity:.5; filter:grayscale(1);}
+  .card.no-offline .play{background:var(--ink-soft);}
+
   footer.container{margin-top:48px; margin-bottom:32px;}
   footer{color:var(--ink-soft); font-size:14px;}
   footer a{color:var(--teal-dark);}
@@ -73,10 +79,11 @@
 <header class="container">
   <img class="emblem" src="img/emblem.png" alt="Емблема гімназії № 131 Святошинського району міста Києва">
   <h1>Інформатика в 131-й</h1>
-  <p>Ігри-тренажери для уроків інформатики. Працюють у браузері Chrome без реєстрації. Досить раз відкрити цю сторінку з інтернетом — і всі ігри далі працюють без нього.</p>
+  <p>Ігри-тренажери для уроків інформатики. Працюють у браузері Chrome без реєстрації. Досить раз відкрити цю сторінку з інтернетом і дочекатися, поки ігри збережуться, — і далі вони працюють без нього.</p>
 </header>
 
 <main class="container">
+  <p class="save-note" id="saveNote" hidden></p>
 
   <h2 class="section-title keys"><span class="dot"></span>Клавіатура</h2>
   <div class="grid">
@@ -173,13 +180,57 @@
 <script>
 // Офлайн-режим: після першого відкриття з інтернетом каталог відкривається й без мережі (див. sw.js).
 // Заразом реєструємо власні sw.js усіх ігор з карток: кожна гра зберігає себе так, ніби її вже відкрили.
+// По одній, а не всі разом: на слабкому інтернеті вісім одночасних завантажень не закінчує жодне, а так за коротке
+// відкриття встигають хоч кілька ігор, решта — наступного разу (що вже завантажено, sw.js гри не завантажує вдруге).
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  // З інтернетом каталог просить кожну гру оновити свою збережену копію (разом зі спільними файлами сайту),
-  // тож після оновлення ігор досить відкрити каталог — кожну гру окремо відкривати не треба
-  // update() — бо повторна реєстрація не перевіряє, чи змінився sw.js гри: нова версія при встановленні сама збереже всі файли
-  const refresh = reg=>{ if(navigator.onLine) reg.update().catch(()=>{}).then(()=>reg.active?.postMessage('refresh')); };
-  navigator.serviceWorker.register('sw.js').then(refresh).catch(()=>{});
-  for(const a of document.querySelectorAll('a.card')) navigator.serviceWorker.register(a.pathname + 'sw.js', { scope:a.pathname }).then(refresh).catch(()=>{});
+  const note = document.getElementById('saveNote');
+  const cards = [...document.querySelectorAll('a.card')];
+  const say = (text, warn)=>{ note.textContent = text; note.hidden = !text; note.classList.toggle('warn', !!warn); };
+  // Нова версія sw.js встановлюється (сама завантажує всі файли) — чекаємо, доки встановиться або відпаде
+  const settled = w=>new Promise(done=>{
+    const t = setTimeout(done, 90000);
+    const check = ()=>{ if(w.state === 'activated' || w.state === 'redundant'){ clearTimeout(t); done(); } };
+    w.addEventListener('statechange', check);
+    check();
+  });
+  // Версія та сама — просимо оновити збережену копію (разом зі спільними файлами сайту) і чекаємо відповіді.
+  // Старі sw.js не відповідають — тоді просто не чекаємо довше 20 с
+  const refresh = w=>new Promise(done=>{
+    const ch = new MessageChannel(), t = setTimeout(done, 20000);
+    ch.port1.onmessage = ()=>{ clearTimeout(t); done(); };
+    w.postMessage('refresh', [ch.port2]);
+  });
+  // true — гра (чи каталог) збережена на цьому комп'ютері й відкриється без інтернету
+  async function keep(url, scope){
+    let reg;
+    try{ reg = await navigator.serviceWorker.register(url, scope ? { scope } : undefined); }catch(e){ return false; }
+    if(navigator.onLine){
+      // update() — бо повторна реєстрація не перевіряє, чи змінився sw.js гри
+      if(!reg.installing && !reg.waiting) await reg.update().catch(()=>{});
+      const fresh = reg.installing || reg.waiting;
+      if(fresh) await settled(fresh);
+      else if(reg.active) await refresh(reg.active);
+    }
+    return !!reg.active;
+  }
+  (async ()=>{
+    const online = navigator.onLine, n = cards.length;
+    let saved = 0;
+    const progress = ()=>say(`Зберігаю ігри для роботи без інтернету: ${saved} з ${n}. Не закривайте цю сторінку.`);
+    if(online) progress();
+    await keep('sw.js');
+    for(const a of cards){
+      const ok = await keep(a.pathname + 'sw.js', a.pathname);
+      if(ok) saved++;
+      if(online) progress();
+      if(!ok){ a.classList.add('no-offline'); a.querySelector('.play').textContent = 'Потрібен інтернет'; }   // онлайн грати можна й так
+    }
+    if(saved === n){
+      if(online){ say('Усі ігри збережено: далі вони працюють і без інтернету.'); setTimeout(()=>say(''), 8000); }
+      else say('');
+    }else if(online) say(`Збережено ${saved} з ${n} ігор. Решта збережеться, коли цю сторінку знову відкриють з інтернетом.`, true);
+    else say(`Без інтернету працюють ${saved} з ${n} ігор. Решта з'являться, коли цю сторінку відкриють з інтернетом.`, true);
+  })();
 }
 </script>
 </body>
