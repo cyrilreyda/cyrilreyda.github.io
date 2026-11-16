@@ -15,11 +15,14 @@ const MAX_DOC = 45000;             // у клітинці таблиці не б
 const PIN_FAILS_PER_10_MIN = 100;  // стільки хибних PIN за 10 хвилин на всіх — далі PIN не перевіряються до кінця 10 хвилин
 const ANIMALS = 9, FOODS = 9;
 
+// Версія коду: відкрийте адресу вебзастосунку в браузері — вона показується там. Змінювати разом з кодом
+const VERSION = '2026-11-16';
+
 const S = { CLASS:0, LAST:1, FIRST:2, NICK:3, PICS:4, FAILS:5, ID:6, GEN:7 };
 const P = { ID:0, GAME:1, VER:2, DATA:3, TIME:4 };
 
 function doGet(){
-  return json({ ok:true, service:'account' });
+  return json({ ok:true, service:'account', version:VERSION });
 }
 
 function doPost(e){
