@@ -193,13 +193,19 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     w.addEventListener('statechange', check);
     check();
   });
-  // Версія та сама — просимо оновити збережену копію (разом зі спільними файлами сайту) і чекаємо відповіді.
+  // Версія та сама — просимо оновити збережену копію (разом зі спільними файлами сайту) і чекаємо відповіді: true — оновлено.
   // Старі sw.js не відповідають — тоді просто не чекаємо довше 20 с
   const refresh = w=>new Promise(done=>{
-    const ch = new MessageChannel(), t = setTimeout(done, 20000);
-    ch.port1.onmessage = ()=>{ clearTimeout(t); done(); };
+    const ch = new MessageChannel(), t = setTimeout(()=>done(false), 20000);
+    ch.port1.onmessage = e=>{ clearTimeout(t); done(e.data === true); };
     w.postMessage('refresh', [ch.port2]);
   });
+  // Збережені копії оновлюємо не частіше разу на годину: учні відкривають каталог багато разів за урок,
+  // а свіжу версію гри й так приносить її відкриття з інтернетом. Нова версія sw.js встановлюється завжди
+  const REFRESHED = 'site-refreshed', HOUR = 3600000;
+  let due = true;
+  try{ due = !(Date.now() - (+localStorage.getItem(REFRESHED) || 0) < HOUR); }catch(e){}
+  let busy = false, allFresh = true;
   // true — гра (чи каталог) збережена на цьому комп'ютері й відкриється без інтернету
   async function keep(url, scope){
     let reg;
@@ -208,25 +214,27 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
       // update() — бо повторна реєстрація не перевіряє, чи змінився sw.js гри
       if(!reg.installing && !reg.waiting) await reg.update().catch(()=>{});
       const fresh = reg.installing || reg.waiting;
-      if(fresh) await settled(fresh);
-      else if(reg.active) await refresh(reg.active);
+      if(fresh){ work(); await settled(fresh); }
+      else if(reg.active && due){ work(); if(!await refresh(reg.active)) allFresh = false; }
     }
     return !!reg.active;
   }
+  const n = cards.length;
+  let saved = 0;
+  const progress = ()=>say(`Зберігаю ігри для роботи без інтернету: ${saved} з ${n}. Не закривайте цю сторінку.`);
+  const work = ()=>{ if(!busy){ busy = true; progress(); } };   // рядок — лише коли справді є що завантажувати
   (async ()=>{
-    const online = navigator.onLine, n = cards.length;
-    let saved = 0;
-    const progress = ()=>say(`Зберігаю ігри для роботи без інтернету: ${saved} з ${n}. Не закривайте цю сторінку.`);
-    if(online) progress();
+    const online = navigator.onLine;
     await keep('sw.js');
     for(const a of cards){
       const ok = await keep(a.pathname + 'sw.js', a.pathname);
       if(ok) saved++;
-      if(online) progress();
+      if(busy) progress();
       if(!ok){ a.classList.add('no-offline'); a.querySelector('.play').textContent = 'Потрібен інтернет'; }   // онлайн грати можна й так
     }
+    if(online && due && allFresh && saved === n) try{ localStorage.setItem(REFRESHED, Date.now()); }catch(e){}
     if(saved === n){
-      if(online){ say('Усі ігри збережено: далі вони працюють і без інтернету.'); setTimeout(()=>say(''), 8000); }
+      if(busy){ say('Усі ігри збережено: далі вони працюють і без інтернету.'); setTimeout(()=>say(''), 8000); }
       else say('');
     }else if(online) say(`Збережено ${saved} з ${n} ігор. Решта збережеться, коли цю сторінку знову відкриють з інтернетом.`, true);
     else say(`Без інтернету працюють ${saved} з ${n} ігор. Решта з'являться, коли цю сторінку відкриють з інтернетом.`, true);
