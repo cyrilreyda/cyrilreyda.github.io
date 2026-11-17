@@ -151,6 +151,23 @@ def handle(req):
             if i == sid and game not in saved and game not in conflicts and (req.get("have") or {}).get(game, 0) < cur["v"]:
                 fresh[game] = cur
         return {"ok": True, "saved": saved, "conflicts": conflicts, "fresh": fresh, "tooBig": [], "cls": h("class:" + s[0])[:22]}
+    if a == "reset":
+        sid = str(req.get("token") or "").split(".")[0]
+        s = next((s for s in STUDENTS if s[ID] == sid), None)
+        if not valid_pics(req.get("pics")) or not str(req.get("game") or ""):
+            return {"error": "bad-request"}
+        if not s or not s[PICS] or req["token"] != sid + "." + h(f"token:{sid}:{s[GEN]}"):
+            return {"error": "token"}
+        if s[FAILS] >= MAX_TRIES:
+            return {"error": "locked"}
+        if h(f"pics:{sid}:{req['pics'][0]}:{req['pics'][1]}") != s[PICS]:
+            s[FAILS] += 1
+            return {"error": "locked"} if s[FAILS] >= MAX_TRIES else {"error": "pics", "left": MAX_TRIES - s[FAILS]}
+        s[FAILS] = 0
+        cur = PROGRESS.get((sid, req["game"]))
+        v = (cur["v"] if cur else 0) + 1
+        PROGRESS[(sid, req["game"])] = {"v": v, "data": req.get("data"), "t": int(time.time() * 1000)}
+        return {"ok": True, "v": v}
     return {"error": "bad-request"}
 
 

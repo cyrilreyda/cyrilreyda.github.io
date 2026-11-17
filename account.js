@@ -17,6 +17,8 @@
 //   Account.setShared(name, value) — зберегти його
 //   Account.on('update', fn) — fn(key, data): дані змінилися з іншого пристрою (дані вже зведено й збережено)
 //   Account.logout()         — вийти; сторінка перезавантажується й показує вхід
+//   Account.confirmReset(key, data) — скинути прогрес гри: учень підтверджує картинками, сервер записує data (новий порожній
+//                              прогрес). Проміс: true — скинуто, false — скасовано чи немає інтернету. Гість — одразу true
 //   Account.played()         — учень завершив раунд у цій грі (для «Моїх ігор» і наліпок за кількість ігор)
 //   Account.showGames()      — вікно «Мої ігри» (гра відкриває його кліком на аватар у профілі)
 (()=>{
@@ -25,7 +27,8 @@
   const API = LOCAL ? 'http://localhost:8790/' : 'https://script.google.com/macros/s/AKfycbzntwAHNQg8lN-XZS6ZVeb6cgmUEsdviwB45gfOW8C9ww6X6rbocgquVLVGCLlNKhOv/exec';
   if(!API) return;
 
-  const IDLE_CONFIRM = 30 * 60e3;   // після стількох хвилин без гри спитати «Це ти?» (класний комп'ютер, прийшов інший учень)
+  const IDLE_CONFIRM = 10 * 60e3;   // після стількох хвилин без дій спитати «Це ти?» з картинками (перерва: за комп'ютер сів інший учень)
+  const LOCAL_TRIES = 5;            // стільки помилок з картинками без сервера — і копія для входу без інтернету стирається
   const ANIMALS = [['🐱','кіт'],['🐶','песик'],['🐘','слон'],['🦒','жираф'],['🐸','жабка'],['🐧','пінгвін'],['🐙','восьминіг'],['🦋','метелик'],['🐞','сонечко']];
   const FOODS = [['🍎','яблуко'],['🍌','банан'],['🍉','кавун'],['🍇','виноград'],['🥕','морква'],['🍕','піца'],['🍦','морозиво'],['🍩','пончик'],['🧀','сир']];
   const SESSION = 'acc-session';           // { uid, last } — хто зараз грає на цьому пристрої
@@ -62,20 +65,32 @@
     const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
     setJ(VERIFY(uid), { salt, hash:await slowHash(`${uid}:${pics}`, salt) });
   }
+  // Перевірка картинок за копією на пристрої: { ok } або { left } — скільки спроб лишилось, або { none } — копії немає.
+  // Після LOCAL_TRIES помилок копія стирається, і далі вхід лише через сервер (там свій лічильник помилок)
   async function checkVerifier(uid, pics){
     const v = getJ(VERIFY(uid));
-    return !!(v && subtle && await slowHash(`${uid}:${pics}`, v.salt) === v.hash);
+    if(!v || !subtle) return { none:true };
+    if(await slowHash(`${uid}:${pics}`, v.salt) === v.hash){
+      if(v.fails){ v.fails = 0; setJ(VERIFY(uid), v); }
+      return { ok:true };
+    }
+    v.fails = (v.fails || 0) + 1;
+    setJ(VERIFY(uid), v.fails >= LOCAL_TRIES ? null : v);
+    return { left:LOCAL_TRIES - v.fails };
   }
 
   /* ---------- Зведення даних з двох пристроїв ---------- */
   // Числа — більше (нейрончики, заїзди, рекорди лише ростуть), об'єкти — обидва набори ключів (наліпки, медалі),
-  // масиви чисел однакової довжини — більше в кожній позиції, решта — з цього пристрою (налаштування, обране)
+  // масиви чисел однакової довжини — більше в кожній позиції, решта — з цього пристрою (налаштування, обране).
+  // Скинутий прогрес позначено resetAt: з двох версій з різним resetAt береться новіша ціла, інакше старі рекорди повернулися б
   const isObj = x=>x && typeof x === 'object' && !Array.isArray(x);
   function merge(a, b){
     if(a === undefined || a === null) return b;
     if(b === undefined || b === null) return a;
     if(typeof a === 'number' && typeof b === 'number') return Math.max(a, b);
     if(isObj(a) && isObj(b)){
+      const ra = a.resetAt || 0, rb = b.resetAt || 0;
+      if(ra !== rb) return ra > rb ? a : b;
       const out = {};
       new Set([...Object.keys(a), ...Object.keys(b)]).forEach(k=>out[k] = merge(a[k], b[k]));
       return out;
@@ -213,7 +228,9 @@
     save(key, data){
       if(!fresh()) return;
       const d = rec.docs[key] ||= { v:0 };
+      const resetAt = isObj(d.data) && d.data.resetAt;   // гра про позначку скидання не знає — зберігаємо її самі
       d.data = copy(data);
+      if(resetAt && isObj(d.data) && !d.data.resetAt) d.data.resetAt = resetAt;
       d.dirty = true;
       d.rev = (d.rev || 0) + 1;
       store();
@@ -240,9 +257,40 @@
       setJ(SESSION, null);
       location.reload();
     },
+    confirmReset(key, data){
+      if(!session || session.guest) return Promise.resolve(true);
+      if(!fresh() || !rec.token || box) return Promise.resolve(false);
+      return new Promise(done=>{
+        resetReq = { key, data:Object.assign(copy(data), { resetAt:Date.now() }), done };
+        mode = 'reset'; who = { id:session.uid, pics:true }; picks = [];
+        openLogin('animal');
+      });
+    },
   };
   window.Account = Account;
-  const needConfirm = ()=>session && !session.guest && Date.now() - (session.last || 0) > IDLE_CONFIRM;
+  // Інша вкладка могла оновити час останньої дії — беремо пізніший
+  const needConfirm = ()=>{
+    if(!session || session.guest) return false;
+    const s = getJ(SESSION);
+    if(s && s.uid === session.uid) session.last = Math.max(session.last || 0, s.last || 0);
+    return Date.now() - (session.last || 0) > IDLE_CONFIRM;
+  };
+  // Гру лишили відкритою: після паузи перша ж дія (і таймер — щоб новий учень одразу побачив питання) відкриває «Це ти?».
+  // Якщо в іншій вкладці вийшли чи увійшов інший учень, ця сторінка перезавантажується, щоб не писати прогрес не тому
+  const ACTIVITY = ['keydown', 'pointerdown', 'touchstart', 'wheel'];
+  function watchIdle(e){
+    if(!session || box) return;
+    const s = getJ(SESSION);
+    if(!s || s.uid !== session.uid){ if(e) e.stopImmediatePropagation(), e.preventDefault(); location.reload(); return; }
+    if(needConfirm()){
+      if(e) e.stopImmediatePropagation(), e.preventDefault();
+      onReady(()=>openLogin('confirm'));
+      return;
+    }
+    if(e) touch();
+  }
+  ACTIVITY.forEach(t=>window.addEventListener(t, watchIdle, { capture:true, passive:false }));
+  setInterval(()=>watchIdle(null), 30e3);
 
   if(session && !session.guest) schedule(1500);
   else if(dirtyRecs().length) schedule(1500);
@@ -351,6 +399,8 @@
       border-radius:999px; padding:4px 12px; font:700 13px 'Nunito Sans',system-ui,sans-serif; cursor:help;}`;
 
   let box = null, offline = false, roster = null, pin = '', who = null, picks = [], firstPicks = null, nick = '';
+  // mode: 'login' — звичайний вхід, 'again' — «Це ти?» після паузи, 'reset' — підтвердження скидання прогресу (resetReq)
+  let mode = 'login', resetReq = null;
   const EVENTS = ['keydown', 'keyup', 'keypress', 'mousedown', 'mouseup', 'click', 'dblclick', 'pointerdown', 'pointerup', 'wheel', 'contextmenu', 'touchstart'];
   const block = e=>{ if(box && !box.contains(e.target)) e.stopImmediatePropagation(); };
 
@@ -370,6 +420,8 @@
     EVENTS.forEach(t=>window.removeEventListener(t, block, { capture:true }));
     box.remove();
     box = null;
+    mode = 'login';
+    lastTouch = 0;   // щойно підтвердив — відлік паузи з цієї миті
     touch();
     const fns = readyFns;
     readyFns = [];
@@ -381,12 +433,15 @@
   const wait = text=>card(`<div class="acc-big">⏳</div><div class="acc-wait">${text}</div>`);
 
   function show(step, err = ''){
-    if(step === 'confirm'){
-      const u = userOf();
-      card(`<div class="acc-big">👋</div><h2>Це ти, ${esc(u.label)}?</h2>
-        <div class="row" style="margin-top:16px"><button data-a="yes">Так, це я</button><button class="light" data-a="no">Ні, інший учень</button></div>`);
-      on('[data-a="yes"]', closeLogin);
-      on('[data-a="no"]', ()=>{ session = null; rec = null; setJ(SESSION, null); show('pin'); });
+    if(step === 'confirm'){   // після паузи: картинки, а не кнопка «Так», — інакше «так» натисне будь-хто
+      mode = 'again'; who = { id:session.uid, pics:true }; picks = [];
+      show('animal', err);
+      return;
+    }
+    if(step === 'note'){   // повідомлення з однією кнопкою; err — текст, then — що далі
+      card(`<div class="acc-big">${err.ico}</div><h2>${esc(err.title)}</h2><p>${esc(err.text)}</p>
+        <div class="row" style="margin-top:16px"><button data-a="ok">Добре</button></div>`);
+      on('[data-a="ok"]', err.then);
       return;
     }
     if(step === 'pin'){
@@ -444,19 +499,29 @@
     if(step === 'animal' || step === 'food'){
       const animal = step === 'animal', set = animal ? ANIMALS : FOODS;
       const setupMode = !who.pics, again = setupMode && firstPicks;
-      const title = again ? (animal ? 'Ще раз: твоя тварина' : 'Ще раз: твоя їжа')
+      const pick = animal ? 'Обери свою тварину.' : 'Обери свою їжу.';
+      const title = mode === 'again' ? `Це ти, ${esc(userOf().label)}?` : mode === 'reset' ? 'Скинути прогрес?'
+        : again ? (animal ? 'Ще раз: твоя тварина' : 'Ще раз: твоя їжа')
         : setupMode ? (animal ? 'Обери свою тварину' : 'Обери свою їжу')
         : (animal ? 'Твоя тварина' : 'Твоя їжа');
-      const sub = setupMode && !again ? 'Запам\'ятай її: так ти входитимеш у гру. Нікому не кажи.' : again ? 'Щоб перевірити, що ти запам\'ятав.' : '';
+      const sub = mode === 'again' ? pick : mode === 'reset' ? 'Щоб підтвердити, що це твій прогрес. ' + pick
+        : setupMode && !again ? 'Запам\'ятай її: так ти входитимеш у гру. Нікому не кажи.' : again ? 'Щоб перевірити, що ти запам\'ятав.' : '';
       const total = setupMode ? 4 : 2, at = (again ? 2 : 0) + (animal ? 0 : 1);
+      const back = mode === 'again' ? '<button class="ghost" type="button" data-a="other">Ні, я інший учень</button>'
+        : mode === 'reset' ? '<button class="ghost" type="button" data-a="cancel">Скасувати</button>'
+        : '<button class="ghost" type="button" data-a="back">← Назад</button>';
       card(`<h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}
         <div class="acc-grid">${shuffle(set.map((x, i)=>[i, ...x])).map(([i, e, w])=>`<button type="button" data-p="${i}" aria-label="${w}"><span class="e">${e}</span><span class="w">${w}</span></button>`).join('')}</div>
         <div class="acc-steps">${Array.from({ length:total }, (_, i)=>`<i class="${i <= at ? 'on' : ''}"></i>`).join('')}</div>
         <div class="err">${esc(err)}</div>
-        <div class="row"><button class="ghost" type="button" data-a="back">← Назад</button></div>`);
+        <div class="row">${back}</div>`);
+      on('[data-a="other"]', ()=>Account.logout());
+      on('[data-a="cancel"]', ()=>endReset(false));
       on('[data-p]', e=>{
         picks.push(+e.currentTarget.dataset.p);
         if(animal){ show('food'); return; }
+        if(mode === 'again'){ doAgain(); return; }
+        if(mode === 'reset'){ doReset(); return; }
         if(!setupMode){ doLogin(); return; }
         if(!firstPicks){ firstPicks = picks; picks = []; show('animal'); return; }
         if(firstPicks[0] !== picks[0] || firstPicks[1] !== picks[1]){ firstPicks = null; picks = []; show('animal', 'Картинки не збіглися. Обери ще раз.'); return; }
@@ -472,7 +537,9 @@
         const g = getJ(DATA('guest'));
         Object.entries(g.docs).forEach(([key, d])=>{
           const mine = rec.docs[key];
-          rec.docs[key] = { v:mine ? mine.v : 0, data:merge(mine && mine.data, d.data), dirty:true, rev:((mine && mine.rev) || 0) + 1 };
+          // Гра гостя — пізніша за скидання (якщо воно було), тож додається до скинутого, а не відкидається
+          const gd = mine && isObj(mine.data) && mine.data.resetAt && isObj(d.data) ? { ...d.data, resetAt:mine.data.resetAt } : d.data;
+          rec.docs[key] = { v:mine ? mine.v : 0, data:merge(mine && mine.data, gd), dirty:true, rev:((mine && mine.rev) || 0) + 1 };
         });
         setJ(DATA('guest'), null);
         store();
@@ -517,8 +584,53 @@
     if(res && res.error){ show('pin', 'Щось пішло не так. Введи PIN ще раз.'); return; }
     // Немає зв'язку: впускаємо, якщо цей учень уже входив на цьому пристрої
     const r = getJ(DATA(who.id));
-    if(r && await checkVerifier(who.id, pics)){ start(who.id, r); afterLogin(); return; }
-    show('animal', r ? 'Не ті картинки.' : 'Немає інтернету. Без нього можна увійти лише там, де ти вже входив.');
+    const c = r ? await checkVerifier(who.id, pics) : { none:true };
+    if(c.ok){ start(who.id, r); afterLogin(); return; }
+    if(c.left) show('animal', `Не ті картинки. Залишилось спроб: ${c.left}.`);
+    else if(!c.none) show('list', 'Забагато помилок. Тепер увійти можна лише з інтернетом.');
+    else show('list', r ? 'Немає інтернету. Зараз увійти можна лише з інтернетом.' : 'Немає інтернету. Без нього можна увійти лише там, де ти вже входив.');
+  }
+
+  // «Це ти?» після паузи: картинки перевіряються на пристрої, тож і без інтернету. Немає копії — звичайний вхід
+  async function doAgain(){
+    const pics = picks.slice();
+    picks = [];
+    wait('Перевіряю…');
+    const c = await checkVerifier(session.uid, pics);
+    if(c.ok){ closeLogin(); return; }
+    if(c.left){ show('animal', `Не ті картинки. Залишилось спроб: ${c.left}.`); return; }
+    Account.logout();
+  }
+
+  // Скидання прогресу: лише через сервер — він перевіряє картинки й записує порожній прогрес
+  async function doReset(){
+    const pics = picks.slice(), { key, data } = resetReq;
+    picks = [];
+    wait('Перевіряю…');
+    let res = null;
+    try{ res = await call({ a:'reset', token:rec.token, game:key, data, pics }); }catch(e){}
+    if(res && res.ok){
+      fresh();
+      const d = rec.docs[key];
+      rec.docs[key] = { v:res.v, data, dirty:false, rev:((d && d.rev) || 0) + 1 };
+      store();
+      endReset(true);
+      return;
+    }
+    if(res && res.error === 'pics'){ show('animal', `Не ті картинки. Залишилось спроб: ${res.left}.`); return; }
+    if(res && (res.error === 'locked' || res.error === 'token')){
+      if(res.error === 'locked') setJ(VERIFY(session.uid), null);
+      show('note', { ico:'🔒', title:res.error === 'locked' ? 'Вхід закрито' : 'Треба увійти ще раз',
+        text:res.error === 'locked' ? 'Забагато помилок з картинками. Попроси вчителя відкрити вхід.' : 'Цей вхід більше не діє.', then:()=>Account.logout() });
+      return;
+    }
+    show('note', { ico:'📡', title:'Потрібен інтернет', text:res ? 'Щось пішло не так. Спробуй пізніше.' : 'Скинути прогрес можна лише з інтернетом. Спробуй, коли він з\'явиться.', then:()=>endReset(false) });
+  }
+  function endReset(ok){
+    const done = resetReq && resetReq.done;
+    resetReq = null;
+    closeLogin();
+    if(done) done(ok);
   }
 
   async function doSetup(){

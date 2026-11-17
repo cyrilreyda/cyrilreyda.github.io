@@ -16,7 +16,7 @@ const PIN_FAILS_PER_10_MIN = 100;  // стільки хибних PIN за 10 х
 const ANIMALS = 9, FOODS = 9;
 
 // Версія коду: відкрийте адресу вебзастосунку в браузері — вона показується там. Змінювати разом з кодом
-const VERSION = '2026-11-16';
+const VERSION = '2026-11-17';
 
 const S = { CLASS:0, LAST:1, FIRST:2, NICK:3, PICS:4, FAILS:5, ID:6, GEN:7 };
 const P = { ID:0, GAME:1, VER:2, DATA:3, TIME:4 };
@@ -29,7 +29,7 @@ function doPost(e){
   let req;
   try{ req = JSON.parse(e.postData.contents); }catch(err){ return json({ error:'bad-request' }); }
   try{
-    const fn = { classList, setup, login, sync, teacherClasses, teacherOverview }[req.a];
+    const fn = { classList, setup, login, sync, reset, teacherClasses, teacherOverview }[req.a];
     return json(fn ? fn(req) : { error:'bad-request' });
   }catch(err){
     console.error(err);
@@ -294,6 +294,35 @@ function sync(req){
       if((+(req.have || {})[game] || 0) < at[game].v) fresh[game] = { v:at[game].v, data:JSON.parse(at[game].data) };
     });
     return { ok:true, saved, conflicts, fresh, tooBig, cls:classKey(s.r[S.CLASS]) };   // cls — тим, хто увійшов до появи дуелей
+  }finally{ lock.releaseLock(); }
+}
+
+// Скидання прогресу однієї гри: лише з малюнками власника, бо на класному комп'ютері вхід міг лишитися відкритим.
+// Помилки рахуються разом із помилками входу. req.data — новий порожній прогрес гри, записується поверх будь-якої версії
+function reset(req){
+  if(!validPics(req.pics) || !/^[a-z0-9-]{1,40}$/.test(String(req.game))) return { error:'bad-request' };
+  const text = JSON.stringify(req.data);
+  if(!text || text.length > MAX_DOC) return { error:'bad-request' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try{
+    const s = studentByToken(req.token);
+    if(!s) return { error:'token' };
+    const id = String(s.r[S.ID]), st = studentsSheet();
+    const fails = +s.r[S.FAILS] || 0;
+    if(fails >= MAX_TRIES) return { error:'locked' };
+    if(picsHash(id, req.pics) !== String(s.r[S.PICS]).trim()){
+      st.getRange(studentRow(st, s), S.FAILS + 1).setValue(fails + 1);
+      return fails + 1 >= MAX_TRIES ? { error:'locked' } : { error:'pics', left:MAX_TRIES - fails - 1 };
+    }
+    if(fails) st.getRange(studentRow(st, s), S.FAILS + 1).setValue(0);
+    const sh = progressSheet();
+    const i = rows(sh).findIndex(r=>String(r[P.ID]) === id && String(r[P.GAME]) === req.game);
+    const v = (i < 0 ? 0 : +sh.getRange(i + 2, P.VER + 1).getValue() || 0) + 1;
+    const row = [id, req.game, v, text, new Date()];
+    if(i < 0) sh.appendRow(row);
+    else sh.getRange(i + 2, 1, 1, 5).setValues([row]);
+    return { ok:true, v };
   }finally{ lock.releaseLock(); }
 }
 
