@@ -186,9 +186,10 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   const note = document.getElementById('saveNote');
   const cards = [...document.querySelectorAll('a.card')];
   const say = (text, warn)=>{ note.textContent = text; note.hidden = !text; note.classList.toggle('warn', !!warn); };
-  // Нова версія sw.js встановлюється (сама завантажує всі файли) — чекаємо, доки встановиться або відпаде
+  // Нова версія sw.js встановлюється (сама завантажує змінені файли) — чекаємо, доки встановиться або відпаде.
+  // Кожен файл sw.js чекає не довше 30 с, тож хвилина — це вже щось, що від нас не залежить
   const settled = w=>new Promise(done=>{
-    const t = setTimeout(done, 90000);
+    const t = setTimeout(done, 60000);
     const check = ()=>{ if(w.state === 'activated' || w.state === 'redundant'){ clearTimeout(t); done(); } };
     w.addEventListener('statechange', check);
     check();
@@ -214,15 +215,17 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
       // update() — бо повторна реєстрація не перевіряє, чи змінився sw.js гри
       if(!reg.installing && !reg.waiting) await reg.update().catch(()=>{});
       const fresh = reg.installing || reg.waiting;
-      if(fresh){ work(); await settled(fresh); }
-      else if(reg.active && due){ work(); if(!await refresh(reg.active)) allFresh = false; }
+      if(fresh) await settled(fresh);
+      else if(reg.active && due){ if(!await refresh(reg.active)) allFresh = false; }
     }
     return !!reg.active;
   }
   const n = cards.length;
   let saved = 0;
   const progress = ()=>say(`Зберігаю ігри для роботи без інтернету: ${saved} з ${n}. Не закривайте цю сторінку.`);
-  const work = ()=>{ if(!busy){ busy = true; progress(); } };   // рядок — лише коли справді є що завантажувати
+  const work = ()=>{ if(!busy){ busy = true; progress(); } };
+  // Рядок — лише коли sw.js справді почав щось завантажувати (сам каже про це), а не на кожну перевірку
+  try{ new BroadcastChannel('offline-save').onmessage = work; }catch(e){}
   (async ()=>{
     const online = navigator.onLine;
     await keep('sw.js');
