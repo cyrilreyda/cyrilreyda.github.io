@@ -208,14 +208,26 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   try{ due = !(Date.now() - (+localStorage.getItem(REFRESHED) || 0) < HOUR); }catch(e){}
   let busy = false, allFresh = true;
   // true — гра (чи каталог) збережена на цьому комп'ютері й відкриється без інтернету
+  // Встановлена версія при порожньому місці активної мала б увімкнутися одразу, але Chrome буває так і лишає її чекати
+  // (бачили на keyboard-residents-kids: active немає, waiting — installed), і гра не працює без інтернету.
+  // Тоді реєструємо гру заново: нова реєстрація бере вже збережені файли з кешу, нічого не качаючи вдруге
+  const stuck = reg=>!reg.active && !reg.installing && !!reg.waiting;
+  const renew = async (reg, url, opts)=>{ await reg.unregister(); return navigator.serviceWorker.register(url, opts); };
   async function keep(url, scope){
+    const opts = scope ? { scope } : undefined;
     let reg;
-    try{ reg = await navigator.serviceWorker.register(url, scope ? { scope } : undefined); }catch(e){ return false; }
+    try{
+      reg = await navigator.serviceWorker.register(url, opts);
+      if(stuck(reg)) reg = await renew(reg, url, opts);
+    }catch(e){ return false; }
     if(navigator.onLine){
       // update() — бо повторна реєстрація не перевіряє, чи змінився sw.js гри
       if(!reg.installing && !reg.waiting) await reg.update().catch(()=>{});
       const fresh = reg.installing || reg.waiting;
-      if(fresh) await settled(fresh);
+      if(fresh){
+        await settled(fresh);
+        if(stuck(reg)) try{ reg = await renew(reg, url, opts); const w = reg.installing || reg.waiting; if(w) await settled(w); }catch(e){}
+      }
       else if(reg.active && due){ if(!await refresh(reg.active)) allFresh = false; }
     }
     return !!reg.active;
